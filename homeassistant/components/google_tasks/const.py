@@ -26,22 +26,22 @@ class TaskStatus(StrEnum):
 
 
 # ---- Notification configuration keys ----
-CONF_NOTIFY_ENABLED = "notify_enabled"
-CONF_NOTIFY_SERVICE = "notify_service"
-CONF_NOTIFY_TIME = "notify_time"
-CONF_NOTIFY_METHOD = "notify_method"  # NEW — Push or Email
+CONF_NOTIFICATION_ENABLED = "notification_enabled"
+CONF_NOTIFICATION_SERVICE = "notification_service"
+CONF_NOTIFICATION_TIME = "notification_time"
+CONF_NOTIFICATION_METHOD = "notification_method"  # NEW — Push or Email
 
 
 # ---- Notification method constants ----
-NOTIFY_METHOD_PUSH = "push"
-NOTIFY_METHOD_EMAIL = "email"
+NOTIFICATION_METHOD_PUSH = "push"
+NOTIFICATION_METHOD_EMAIL = "email"
 
 
 # ---- Default values ----
-DEFAULT_NOTIFY_ENABLED = False
-DEFAULT_NOTIFY_SERVICE = "persistent_notification"
-DEFAULT_NOTIFY_TIME = "08:00"
-DEFAULT_NOTIFY_METHOD = NOTIFY_METHOD_PUSH
+DEFAULT_NOTIFICATION_ENABLED = False
+DEFAULT_NOTIFICATION_SERVICE = "persistent_notification"
+DEFAULT_NOTIFICATION_TIME = "08:00"
+DEFAULT_NOTIFICATION_METHOD = NOTIFICATION_METHOD_PUSH
 
 # ---- SMTP / Email Configuration Keys ----
 CONF_EMAIL_ENABLED = "email_enabled"

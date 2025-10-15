@@ -18,12 +18,12 @@ import voluptuous as vol
 from .const import (
     DOMAIN,
     OAUTH2_SCOPES,
-    CONF_NOTIFY_ENABLED,
-    CONF_NOTIFY_SERVICE,
-    CONF_NOTIFY_TIME,
-    CONF_NOTIFY_METHOD,
-    NOTIFY_METHOD_PUSH,
-    NOTIFY_METHOD_EMAIL,
+    CONF_NOTIFICATION_ENABLED,
+    CONF_NOTIFICATION_SERVICE,
+    CONF_NOTIFICATION_TIME,
+    CONF_NOTIFICATION_METHOD,
+    NOTIFICATION_METHOD_PUSH,
+    NOTIFICATION_METHOD_EMAIL,
     CONF_EMAIL_SENDER,
     CONF_EMAIL_RECIPIENT,
     CONF_EMAIL_SERVER,
@@ -132,24 +132,24 @@ class GoogleTasksOptionsFlowHandler(OptionsFlow):
         # --- Base schema (always shown) ---
         base_schema = {
             vol.Optional(
-                CONF_NOTIFY_ENABLED, default=opts.get(CONF_NOTIFY_ENABLED, False)
+                CONF_NOTIFICATION_ENABLED, default=opts.get(CONF_NOTIFICATION_ENABLED, False)
             ): bool,
             vol.Optional(
-                CONF_NOTIFY_METHOD,
-                default=opts.get(CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH),
+                CONF_NOTIFICATION_METHOD,
+                default=opts.get(CONF_NOTIFICATION_METHOD, NOTIFICATION_METHOD_PUSH),
             ): vol.In(
                 {
-                    NOTIFY_METHOD_PUSH: "Push Notification",
-                    NOTIFY_METHOD_EMAIL: "Email Notification",
+                    NOTIFICATION_METHOD_PUSH: "Push Notification",
+                    NOTIFICATION_METHOD_EMAIL: "Email Notification",
                 }
             ),
         }
 
         # Determine selected method
-        selected_method = opts.get(CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH)
+        selected_method = opts.get(CONF_NOTIFICATION_METHOD, NOTIFICATION_METHOD_PUSH)
 
         # --- Conditional fields for each method ---
-        if selected_method == NOTIFY_METHOD_EMAIL:
+        if selected_method == NOTIFICATION_METHOD_EMAIL:
             # Email-specific fields
             base_schema.update(
                 {
@@ -182,8 +182,8 @@ class GoogleTasksOptionsFlowHandler(OptionsFlow):
             base_schema.update(
                 {
                     vol.Optional(
-                        CONF_NOTIFY_SERVICE,
-                        default=opts.get(CONF_NOTIFY_SERVICE, "persistent_notification"),
+                        CONF_NOTIFICATION_SERVICE,
+                        default=opts.get(CONF_NOTIFICATION_SERVICE, "persistent_notification"),
                     ): str,
                 }
             )
@@ -192,7 +192,7 @@ class GoogleTasksOptionsFlowHandler(OptionsFlow):
         base_schema.update(
             {
                 vol.Optional(
-                    CONF_NOTIFY_TIME, default=opts.get(CONF_NOTIFY_TIME, "08:00")
+                    CONF_NOTIFICATION_TIME, default=opts.get(CONF_NOTIFICATION_TIME, "08:00")
                 ): str,
             }
         )

@@ -15,12 +15,12 @@ from homeassistant.helpers.event import async_track_time_change
 from . import api
 from .const import (
     DOMAIN,
-    CONF_NOTIFY_ENABLED,
-    CONF_NOTIFY_SERVICE,
-    CONF_NOTIFY_TIME,
-    CONF_NOTIFY_METHOD,
-    NOTIFY_METHOD_PUSH,
-    NOTIFY_METHOD_EMAIL,
+    CONF_NOTIFICATION_ENABLED,
+    CONF_NOTIFICATION_SERVICE,
+    CONF_NOTIFICATION_TIME,
+    CONF_NOTIFICATION_METHOD,
+    NOTIFICATION_METHOD_PUSH,
+    NOTIFICATION_METHOD_EMAIL,
     CONF_EMAIL_SENDER,
     CONF_EMAIL_RECIPIENT,
     CONF_EMAIL_SERVER,
@@ -88,10 +88,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
 
     # ---- Set up notifications (from OptionsFlow) ----
     options = entry.options
-    notify_enabled = options.get(CONF_NOTIFY_ENABLED, False)
-    notify_method = options.get(CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH)
-    notify_service = options.get(CONF_NOTIFY_SERVICE, "persistent_notification")
-    notify_time = options.get(CONF_NOTIFY_TIME, "08:00")
+    notify_enabled = options.get(CONF_NOTIFICATION_ENABLED, False)
+    notify_method = options.get(CONF_NOTIFICATION_METHOD, NOTIFICATION_METHOD_PUSH)
+    notify_service = options.get(CONF_NOTIFICATION_SERVICE, "persistent_notification")
+    notify_time = options.get(CONF_NOTIFICATION_TIME, "08:00")
 
     if not notify_enabled:
         return True
@@ -102,7 +102,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
         hour, minute = 8, 0  # fallback
 
     # --- EMAIL method setup ---
-    if notify_method == NOTIFY_METHOD_EMAIL:
+    if notify_method == NOTIFICATION_METHOD_EMAIL:
         email_service_name = "google_tasks_email_notify"
 
         email_config = {
