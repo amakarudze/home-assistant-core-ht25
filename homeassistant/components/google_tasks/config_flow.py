@@ -9,11 +9,25 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import HttpRequest
 
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_ACCESS_TOKEN, CONF_TOKEN
+from homeassistant.core import callback
 from homeassistant.helpers import config_entry_oauth2_flow
+import voluptuous as vol
 
-from .const import DOMAIN, OAUTH2_SCOPES
+from .const import (
+    DOMAIN,
+    OAUTH2_SCOPES,
+    CONF_NOTIFY_ENABLED,
+    CONF_NOTIFY_SERVICE,
+    CONF_NOTIFY_TIME,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class OAuth2FlowHandler(
@@ -30,10 +44,10 @@ class OAuth2FlowHandler(
 
     @property
     def extra_authorize_data(self) -> dict[str, Any]:
-        """Extra data that needs to be appended to the authorize url."""
+        """Extra data appended to the authorize URL."""
         return {
             "scope": " ".join(OAUTH2_SCOPES),
-            # Add params to ensure we get back a refresh token
+            # Ensure refresh token is always returned
             "access_type": "offline",
             "prompt": "consent",
         }
@@ -42,22 +56,18 @@ class OAuth2FlowHandler(
         """Create an entry for the flow."""
         credentials = Credentials(token=data[CONF_TOKEN][CONF_ACCESS_TOKEN])
         try:
-            user_resource = build(
-                "oauth2",
-                "v2",
-                credentials=credentials,
-            )
+            # Verify credentials with Google OAuth2 API
+            user_resource = build("oauth2", "v2", credentials=credentials)
             user_resource_cmd: HttpRequest = user_resource.userinfo().get()
             user_resource_info = await self.hass.async_add_executor_job(
                 user_resource_cmd.execute
             )
-            resource = build(
-                "tasks",
-                "v1",
-                credentials=credentials,
-            )
+
+            # Verify access to Google Tasks API
+            resource = build("tasks", "v1", credentials=credentials)
             cmd: HttpRequest = resource.tasklists().list()
             await self.hass.async_add_executor_job(cmd.execute)
+
         except HttpError as ex:
             error = ex.reason
             return self.async_abort(
@@ -65,8 +75,9 @@ class OAuth2FlowHandler(
                 description_placeholders={"message": error},
             )
         except Exception:
-            self.logger.exception("Unknown error occurred")
+            self.logger.exception("Unknown error occurred during OAuth2 flow")
             return self.async_abort(reason="unknown")
+
         user_id = user_resource_info["id"]
         await self.async_set_unique_id(user_id)
 
@@ -95,3 +106,43 @@ class OAuth2FlowHandler(
         if user_input is None:
             return self.async_show_form(step_id="reauth_confirm")
         return await self.async_step_user()
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Return the options flow handler."""
+        return GoogleTasksOptionsFlowHandler(config_entry)
+
+
+class GoogleTasksOptionsFlowHandler(OptionsFlow):
+    """Handle options flow for Google Tasks notifications."""
+
+    def __init__(self, config_entry):
+        # ✅ Use a private variable to avoid deprecated assignment
+        self._config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Manage the options flow."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        options_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_NOTIFY_ENABLED,
+                    default=self._config_entry.options.get(CONF_NOTIFY_ENABLED, False),
+                ): bool,
+                vol.Optional(
+                    CONF_NOTIFY_SERVICE,
+                    default=self._config_entry.options.get(
+                        CONF_NOTIFY_SERVICE, "persistent_notification"
+                    ),
+                ): str,
+                vol.Optional(
+                    CONF_NOTIFY_TIME,
+                    default=self._config_entry.options.get(CONF_NOTIFY_TIME, "08:00"),
+                ): str,
+            }
+        )
+
+        return self.async_show_form(step_id="init", data_schema=options_schema)

@@ -20,6 +20,7 @@ from .coordinator import GoogleTasksConfigEntry, TaskUpdateCoordinator
 
 PARALLEL_UPDATES = 0
 
+# Mapping between Google API statuses and Home Assistant statuses
 TODO_STATUS_MAP = {
     "needsAction": TodoItemStatus.NEEDS_ACTION,
     "completed": TodoItemStatus.COMPLETED,
@@ -28,7 +29,7 @@ TODO_STATUS_MAP_INV = {v: k for k, v in TODO_STATUS_MAP.items()}
 
 
 def _convert_todo_item(item: TodoItem) -> dict[str, str | None]:
-    """Convert TodoItem dataclass items to dictionary of attributes the tasks API."""
+    """Convert TodoItem dataclass items to dictionary of attributes for the Tasks API."""
     result: dict[str, str | None] = {}
     result["title"] = item.summary
     if item.status is not None:
@@ -36,9 +37,7 @@ def _convert_todo_item(item: TodoItem) -> dict[str, str | None]:
     else:
         result["status"] = TodoItemStatus.NEEDS_ACTION
     if (due := item.due) is not None:
-        # due API field is a timestamp string, but with only date resolution.
-        # The time portion of the date is always discarded by the API, so we
-        # always set to UTC.
+        # Google Tasks API expects ISO date in UTC with no time precision
         result["due"] = dt_util.start_of_local_day(due).replace(tzinfo=UTC).isoformat()
     else:
         result["due"] = None
@@ -47,19 +46,14 @@ def _convert_todo_item(item: TodoItem) -> dict[str, str | None]:
 
 
 def _convert_api_item(item: dict[str, str]) -> TodoItem:
-    """Convert tasks API items into a TodoItem."""
+    """Convert Tasks API items into a Home Assistant TodoItem."""
     due: date | None = None
     if (due_str := item.get("due")) is not None:
-        # Due dates are returned always in UTC so we only need to
-        # parse the date portion which will be interpreted as a a local date.
         due = datetime.fromisoformat(due_str).date()
     return TodoItem(
         summary=item["title"],
         uid=item["id"],
-        status=TODO_STATUS_MAP.get(
-            item.get("status", ""),
-            TodoItemStatus.NEEDS_ACTION,
-        ),
+        status=TODO_STATUS_MAP.get(item.get("status", ""), TodoItemStatus.NEEDS_ACTION),
         due=due,
         description=item.get("notes"),
     )
@@ -72,22 +66,18 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Google Tasks todo platform."""
     async_add_entities(
-        (
-            GoogleTaskTodoListEntity(
-                coordinator,
-                coordinator.task_list_title,
-                entry.entry_id,
-                coordinator.task_list_id,
-            )
-            for coordinator in entry.runtime_data
-        ),
+        GoogleTaskTodoListEntity(
+            coordinator,
+            coordinator.task_list_title,
+            entry.entry_id,
+            coordinator.task_list_id,
+        )
+        for coordinator in entry.runtime_data
     )
 
 
-class GoogleTaskTodoListEntity(
-    CoordinatorEntity[TaskUpdateCoordinator], TodoListEntity
-):
-    """A To-do List representation of the Shopping List."""
+class GoogleTaskTodoListEntity(CoordinatorEntity[TaskUpdateCoordinator], TodoListEntity):
+    """Representation of a Google Tasks list as a Home Assistant To-do entity."""
 
     _attr_has_entity_name = True
     _attr_supported_features = (
@@ -114,14 +104,15 @@ class GoogleTaskTodoListEntity(
 
     @property
     def todo_items(self) -> list[TodoItem] | None:
-        """Get the current set of To-do items."""
+        """Return the current set of To-do items."""
+        if not self.coordinator.data:
+            return []
         return [_convert_api_item(item) for item in _order_tasks(self.coordinator.data)]
 
     async def async_create_todo_item(self, item: TodoItem) -> None:
         """Add an item to the To-do list."""
         await self.coordinator.api.insert(
-            self._task_list_id,
-            task=_convert_todo_item(item),
+            self._task_list_id, task=_convert_todo_item(item)
         )
         await self.coordinator.async_refresh()
 
@@ -129,9 +120,7 @@ class GoogleTaskTodoListEntity(
         """Update a To-do item."""
         uid: str = cast(str, item.uid)
         await self.coordinator.api.patch(
-            self._task_list_id,
-            uid,
-            task=_convert_todo_item(item),
+            self._task_list_id, uid, task=_convert_todo_item(item)
         )
         await self.coordinator.async_refresh()
 
@@ -149,13 +138,34 @@ class GoogleTaskTodoListEntity(
 
 
 def _order_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Order the task items response.
-
-    All tasks have an order amongst their siblings based on position.
-
-    Home Assistant To-do items do not support the Google Task parent/sibling
-    relationships and the desired behavior is for them to be filtered.
-    """
+    """Order the task items response."""
     parents = [task for task in tasks if task.get("parent") is None]
     parents.sort(key=lambda task: task["position"])
     return parents
+
+
+# --------------------------------------------------------------------
+# Helper function for reminders
+# --------------------------------------------------------------------
+async def get_due_today_tasks_from_coordinator(coordinators) -> list[str]:
+    """Return list of task titles due today from provided coordinators."""
+    all_tasks: list[dict[str, Any]] = []
+    for coord in coordinators:
+        if hasattr(coord, "data") and coord.data:
+            all_tasks.extend(coord.data)
+
+    today = datetime.now().date()
+    due_today: list[str] = []
+
+    for task in all_tasks:
+        due_str = task.get("due")
+        if not due_str:
+            continue
+        try:
+            due_date = datetime.fromisoformat(due_str).date()
+        except Exception:
+            continue
+        if due_date == today and task.get("status") != "completed":
+            due_today.append(task.get("title", ""))
+
+    return due_today
