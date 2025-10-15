@@ -21,6 +21,12 @@ from .const import (
     CONF_NOTIFY_METHOD,
     NOTIFY_METHOD_PUSH,
     NOTIFY_METHOD_EMAIL,
+    CONF_EMAIL_SENDER,
+    CONF_EMAIL_RECIPIENT,
+    CONF_EMAIL_SERVER,
+    CONF_EMAIL_PORT,
+    CONF_EMAIL_USERNAME,
+    CONF_EMAIL_PASSWORD,
 )
 from .coordinator import GoogleTasksConfigEntry, TaskUpdateCoordinator
 from .exceptions import GoogleTasksApiError
@@ -83,53 +89,72 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
     # ---- Set up notifications (from OptionsFlow) ----
     options = entry.options
     notify_enabled = options.get(CONF_NOTIFY_ENABLED, False)
+    notify_method = options.get(CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH)
     notify_service = options.get(CONF_NOTIFY_SERVICE, "persistent_notification")
     notify_time = options.get(CONF_NOTIFY_TIME, "08:00")
-    notify_method = options.get(CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH)
 
-    if notify_enabled:
-        try:
-            hour, minute = map(int, notify_time.split(":"))
-        except ValueError:
-            hour, minute = 8, 0  # fallback to 8:00 AM
+    if not notify_enabled:
+        return True
 
-        async def send_daily_task_notification(now):
-            """Send a daily summary of tasks due today."""
-            tasks = await get_due_today_tasks(hass)
-            if not tasks:
-                return
-            message = "Today's Google Tasks:\n" + "\n".join(f"- {t}" for t in tasks)
+    try:
+        hour, minute = map(int, notify_time.split(":"))
+    except ValueError:
+        hour, minute = 8, 0  # fallback
 
-            # Send Push or Email based on selected method
-            if notify_method == NOTIFY_METHOD_EMAIL:
-                await hass.services.async_call(
-                    "notify",
-                    notify_service,
-                    {
-                        "title": "Google Tasks - Daily Summary",
-                        "message": message,
-                        "data": {"email": True},  # if your email notify supports it
-                    },
-                    blocking=False,
-                )
-            else:
-                await hass.services.async_call(
-                    "notify",
-                    notify_service,
-                    {
-                        "title": "Google Tasks Reminder",
-                        "message": message,
-                    },
-                    blocking=False,
-                )
+    # --- EMAIL method setup ---
+    if notify_method == NOTIFY_METHOD_EMAIL:
+        email_service_name = "google_tasks_email_notify"
 
-        async_track_time_change(
-            hass,
-            send_daily_task_notification,
-            hour=hour,
-            minute=minute,
-            second=0,
+        email_config = {
+            "name": email_service_name,
+            "platform": "smtp",
+            "server": options.get(CONF_EMAIL_SERVER),
+            "port": options.get(CONF_EMAIL_PORT),
+            "timeout": 15,
+            "sender": options.get(CONF_EMAIL_SENDER),
+            "encryption": "starttls",
+            "username": options.get(CONF_EMAIL_USERNAME),
+            "password": options.get(CONF_EMAIL_PASSWORD),
+            "recipient": [options.get(CONF_EMAIL_RECIPIENT)],
+            "sender_name": "Google Tasks Reminder",
+        }
+
+        # Dynamically create SMTP notify service
+        hass.async_create_task(
+            hass.services.async_call(
+                "notify",
+                "setup",
+                {"service": "smtp", "config": email_config},
+            )
         )
+
+        notify_service = email_service_name  # use this new one
+
+    async def send_daily_task_notification(now):
+        """Send a daily summary of tasks due today."""
+        tasks = await get_due_today_tasks(hass)
+        if not tasks:
+            return
+        message = "Today's Google Tasks:\n" + "\n".join(f"- {t}" for t in tasks)
+
+        await hass.services.async_call(
+            "notify",
+            notify_service,
+            {
+                "title": "Google Tasks Reminder",
+                "message": message,
+            },
+            blocking=False,
+        )
+
+    # Schedule daily reminders
+    async_track_time_change(
+        hass,
+        send_daily_task_notification,
+        hour=hour,
+        minute=minute,
+        second=0,
+    )
 
     return True
 

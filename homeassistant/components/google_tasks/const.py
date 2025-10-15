@@ -42,3 +42,12 @@ DEFAULT_NOTIFY_ENABLED = False
 DEFAULT_NOTIFY_SERVICE = "persistent_notification"
 DEFAULT_NOTIFY_TIME = "08:00"
 DEFAULT_NOTIFY_METHOD = NOTIFY_METHOD_PUSH
+
+# ---- SMTP / Email Configuration Keys ----
+CONF_EMAIL_ENABLED = "email_enabled"
+CONF_EMAIL_SENDER = "email_sender"
+CONF_EMAIL_RECIPIENT = "email_recipient"
+CONF_EMAIL_SERVER = "email_server"
+CONF_EMAIL_PORT = "email_port"
+CONF_EMAIL_USERNAME = "email_username"
+CONF_EMAIL_PASSWORD = "email_password"

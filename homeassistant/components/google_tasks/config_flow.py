@@ -9,11 +9,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import HttpRequest
 
-from homeassistant.config_entries import (
-    SOURCE_REAUTH,
-    ConfigFlowResult,
-    OptionsFlow,
-)
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_ACCESS_TOKEN, CONF_TOKEN
 from homeassistant.core import callback
 from homeassistant.helpers import config_entry_oauth2_flow
@@ -28,6 +24,12 @@ from .const import (
     CONF_NOTIFY_METHOD,
     NOTIFY_METHOD_PUSH,
     NOTIFY_METHOD_EMAIL,
+    CONF_EMAIL_SENDER,
+    CONF_EMAIL_RECIPIENT,
+    CONF_EMAIL_SERVER,
+    CONF_EMAIL_PORT,
+    CONF_EMAIL_USERNAME,
+    CONF_EMAIL_PASSWORD,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 class OAuth2FlowHandler(
     config_entry_oauth2_flow.AbstractOAuth2FlowHandler, domain=DOMAIN
 ):
-    """Config flow to handle Google Tasks OAuth2 authentication."""
+    """Handle OAuth2 login for Google Tasks."""
 
     DOMAIN = DOMAIN
 
@@ -47,46 +49,40 @@ class OAuth2FlowHandler(
 
     @property
     def extra_authorize_data(self) -> dict[str, Any]:
-        """Extra data appended to the authorize URL."""
+        """Extra OAuth parameters."""
         return {
             "scope": " ".join(OAUTH2_SCOPES),
-            # Ensure refresh token is always returned
             "access_type": "offline",
             "prompt": "consent",
         }
 
     async def async_oauth_create_entry(self, data: dict[str, Any]) -> ConfigFlowResult:
-        """Create an entry for the flow."""
+        """Create config entry after OAuth."""
         credentials = Credentials(token=data[CONF_TOKEN][CONF_ACCESS_TOKEN])
         try:
-            # Verify credentials with Google OAuth2 API
             user_resource = build("oauth2", "v2", credentials=credentials)
-            user_resource_cmd: HttpRequest = user_resource.userinfo().get()
-            user_resource_info = await self.hass.async_add_executor_job(
-                user_resource_cmd.execute
-            )
+            user_cmd: HttpRequest = user_resource.userinfo().get()
+            user_info = await self.hass.async_add_executor_job(user_cmd.execute)
 
-            # Verify access to Google Tasks API
             resource = build("tasks", "v1", credentials=credentials)
             cmd: HttpRequest = resource.tasklists().list()
             await self.hass.async_add_executor_job(cmd.execute)
 
         except HttpError as ex:
-            error = ex.reason
             return self.async_abort(
                 reason="access_not_configured",
-                description_placeholders={"message": error},
+                description_placeholders={"message": ex.reason},
             )
-        except Exception:
-            self.logger.exception("Unknown error occurred during OAuth2 flow")
+        except Exception as err:
+            _LOGGER.exception("Unknown error during OAuth2: %s", err)
             return self.async_abort(reason="unknown")
 
-        user_id = user_resource_info["id"]
+        user_id = user_info["id"]
         await self.async_set_unique_id(user_id)
 
         if self.source != SOURCE_REAUTH:
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=user_resource_info["name"], data=data)
+            return self.async_create_entry(title=user_info["name"], data=data)
 
         reauth_entry = self._get_reauth_entry()
         if reauth_entry.unique_id:
@@ -99,13 +95,13 @@ class OAuth2FlowHandler(
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
     ) -> ConfigFlowResult:
-        """Perform reauth upon an API authentication error."""
+        """Handle reauth."""
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Confirm reauth dialog."""
+        """Confirm reauth."""
         if user_input is None:
             return self.async_show_form(step_id="reauth_confirm")
         return await self.async_step_user()
@@ -113,51 +109,95 @@ class OAuth2FlowHandler(
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        """Return the options flow handler."""
+        """Return options flow handler."""
         return GoogleTasksOptionsFlowHandler(config_entry)
 
 
+# ---------------------------------------------------------------------
+# Options Flow with Dynamic Email/Push Fields
+# ---------------------------------------------------------------------
 class GoogleTasksOptionsFlowHandler(OptionsFlow):
-    """Handle options flow for Google Tasks notifications."""
+    """Handle dynamic options for notifications."""
 
     def __init__(self, config_entry):
-        # Use a private variable to avoid deprecated assignment
         self._config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
-        """Manage the options flow."""
+        """Main options step."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        # ✅ Added new "notify_method" field (push/email)
-        options_schema = vol.Schema(
+        opts = self._config_entry.options
+
+        # --- Base schema (always shown) ---
+        base_schema = {
+            vol.Optional(
+                CONF_NOTIFY_ENABLED, default=opts.get(CONF_NOTIFY_ENABLED, False)
+            ): bool,
+            vol.Optional(
+                CONF_NOTIFY_METHOD,
+                default=opts.get(CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH),
+            ): vol.In(
+                {
+                    NOTIFY_METHOD_PUSH: "Push Notification",
+                    NOTIFY_METHOD_EMAIL: "Email Notification",
+                }
+            ),
+        }
+
+        # Determine selected method
+        selected_method = opts.get(CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH)
+
+        # --- Conditional fields for each method ---
+        if selected_method == NOTIFY_METHOD_EMAIL:
+            # Email-specific fields
+            base_schema.update(
+                {
+                    vol.Optional(
+                        CONF_EMAIL_SERVER,
+                        default=opts.get(CONF_EMAIL_SERVER, "smtp.gmail.com"),
+                    ): str,
+                    vol.Optional(
+                        CONF_EMAIL_PORT, default=opts.get(CONF_EMAIL_PORT, 587)
+                    ): int,
+                    vol.Optional(
+                        CONF_EMAIL_SENDER, default=opts.get(CONF_EMAIL_SENDER, "")
+                    ): str,
+                    vol.Optional(
+                        CONF_EMAIL_RECIPIENT,
+                        default=opts.get(CONF_EMAIL_RECIPIENT, ""),
+                    ): str,
+                    vol.Optional(
+                        CONF_EMAIL_USERNAME,
+                        default=opts.get(CONF_EMAIL_USERNAME, ""),
+                    ): str,
+                    vol.Optional(
+                        CONF_EMAIL_PASSWORD,
+                        default=opts.get(CONF_EMAIL_PASSWORD, ""),
+                    ): str,
+                }
+            )
+        else:
+            # Push-specific fields
+            base_schema.update(
+                {
+                    vol.Optional(
+                        CONF_NOTIFY_SERVICE,
+                        default=opts.get(CONF_NOTIFY_SERVICE, "persistent_notification"),
+                    ): str,
+                }
+            )
+
+        # Common to both
+        base_schema.update(
             {
                 vol.Optional(
-                    CONF_NOTIFY_ENABLED,
-                    default=self._config_entry.options.get(CONF_NOTIFY_ENABLED, False),
-                ): bool,
-                vol.Optional(
-                    CONF_NOTIFY_METHOD,
-                    default=self._config_entry.options.get(
-                        CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH
-                    ),
-                ): vol.In(
-                    {
-                        NOTIFY_METHOD_PUSH: "Push Notification",
-                        NOTIFY_METHOD_EMAIL: "Email Notification",
-                    }
-                ),
-                vol.Optional(
-                    CONF_NOTIFY_SERVICE,
-                    default=self._config_entry.options.get(
-                        CONF_NOTIFY_SERVICE, "persistent_notification"
-                    ),
-                ): str,
-                vol.Optional(
-                    CONF_NOTIFY_TIME,
-                    default=self._config_entry.options.get(CONF_NOTIFY_TIME, "08:00"),
+                    CONF_NOTIFY_TIME, default=opts.get(CONF_NOTIFY_TIME, "08:00")
                 ): str,
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=options_schema)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(base_schema),
+        )
