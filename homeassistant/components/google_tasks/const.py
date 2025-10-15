@@ -16,7 +16,8 @@ OAUTH2_SCOPES = [
     "openid",
 ]
 
-# Task status options
+
+# ---- Task status options ----
 class TaskStatus(StrEnum):
     """Status of a Google Task."""
 
@@ -24,12 +25,20 @@ class TaskStatus(StrEnum):
     COMPLETED = "completed"
 
 
-# ---- Notification option keys (used in config_flow and __init__.py) ----
+# ---- Notification configuration keys ----
 CONF_NOTIFY_ENABLED = "notify_enabled"
 CONF_NOTIFY_SERVICE = "notify_service"
 CONF_NOTIFY_TIME = "notify_time"
+CONF_NOTIFY_METHOD = "notify_method"  # NEW — Push or Email
 
-# Default values
+
+# ---- Notification method constants ----
+NOTIFY_METHOD_PUSH = "push"
+NOTIFY_METHOD_EMAIL = "email"
+
+
+# ---- Default values ----
 DEFAULT_NOTIFY_ENABLED = False
 DEFAULT_NOTIFY_SERVICE = "persistent_notification"
 DEFAULT_NOTIFY_TIME = "08:00"
+DEFAULT_NOTIFY_METHOD = NOTIFY_METHOD_PUSH

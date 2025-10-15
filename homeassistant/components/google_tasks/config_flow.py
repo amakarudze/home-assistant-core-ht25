@@ -25,6 +25,9 @@ from .const import (
     CONF_NOTIFY_ENABLED,
     CONF_NOTIFY_SERVICE,
     CONF_NOTIFY_TIME,
+    CONF_NOTIFY_METHOD,
+    NOTIFY_METHOD_PUSH,
+    NOTIFY_METHOD_EMAIL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -118,7 +121,7 @@ class GoogleTasksOptionsFlowHandler(OptionsFlow):
     """Handle options flow for Google Tasks notifications."""
 
     def __init__(self, config_entry):
-        # ✅ Use a private variable to avoid deprecated assignment
+        # Use a private variable to avoid deprecated assignment
         self._config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
@@ -126,12 +129,24 @@ class GoogleTasksOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        # ✅ Added new "notify_method" field (push/email)
         options_schema = vol.Schema(
             {
                 vol.Optional(
                     CONF_NOTIFY_ENABLED,
                     default=self._config_entry.options.get(CONF_NOTIFY_ENABLED, False),
                 ): bool,
+                vol.Optional(
+                    CONF_NOTIFY_METHOD,
+                    default=self._config_entry.options.get(
+                        CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH
+                    ),
+                ): vol.In(
+                    {
+                        NOTIFY_METHOD_PUSH: "Push Notification",
+                        NOTIFY_METHOD_EMAIL: "Email Notification",
+                    }
+                ),
                 vol.Optional(
                     CONF_NOTIFY_SERVICE,
                     default=self._config_entry.options.get(

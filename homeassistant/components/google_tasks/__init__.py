@@ -18,6 +18,9 @@ from .const import (
     CONF_NOTIFY_ENABLED,
     CONF_NOTIFY_SERVICE,
     CONF_NOTIFY_TIME,
+    CONF_NOTIFY_METHOD,
+    NOTIFY_METHOD_PUSH,
+    NOTIFY_METHOD_EMAIL,
 )
 from .coordinator import GoogleTasksConfigEntry, TaskUpdateCoordinator
 from .exceptions import GoogleTasksApiError
@@ -40,9 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
         await auth.async_get_access_token()
     except ClientResponseError as err:
         if 400 <= err.status < 500:
-            raise ConfigEntryAuthFailed(
-                "OAuth session invalid, reauth required"
-            ) from err
+            raise ConfigEntryAuthFailed("OAuth session invalid, reauth required") from err
         raise ConfigEntryNotReady from err
     except ClientError as err:
         raise ConfigEntryNotReady from err
@@ -84,12 +85,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
     notify_enabled = options.get(CONF_NOTIFY_ENABLED, False)
     notify_service = options.get(CONF_NOTIFY_SERVICE, "persistent_notification")
     notify_time = options.get(CONF_NOTIFY_TIME, "08:00")
+    notify_method = options.get(CONF_NOTIFY_METHOD, NOTIFY_METHOD_PUSH)
 
     if notify_enabled:
         try:
             hour, minute = map(int, notify_time.split(":"))
         except ValueError:
-            hour, minute = 8, 0  # fallback
+            hour, minute = 8, 0  # fallback to 8:00 AM
 
         async def send_daily_task_notification(now):
             """Send a daily summary of tasks due today."""
@@ -97,12 +99,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
             if not tasks:
                 return
             message = "Today's Google Tasks:\n" + "\n".join(f"- {t}" for t in tasks)
-            await hass.services.async_call(
-                "notify",
-                notify_service,
-                {"message": message, "title": "Google Tasks Reminder"},
-                blocking=False,
-            )
+
+            # Send Push or Email based on selected method
+            if notify_method == NOTIFY_METHOD_EMAIL:
+                await hass.services.async_call(
+                    "notify",
+                    notify_service,
+                    {
+                        "title": "Google Tasks - Daily Summary",
+                        "message": message,
+                        "data": {"email": True},  # if your email notify supports it
+                    },
+                    blocking=False,
+                )
+            else:
+                await hass.services.async_call(
+                    "notify",
+                    notify_service,
+                    {
+                        "title": "Google Tasks Reminder",
+                        "message": message,
+                    },
+                    blocking=False,
+                )
 
         async_track_time_change(
             hass,
