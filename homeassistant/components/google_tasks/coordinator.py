@@ -2,8 +2,7 @@
 
 import asyncio
 import datetime
-from datetime import time as dt_time, timedelta, date
-from dateutil.parser import isoparse
+from datetime import time as dt_time, timedelta
 import logging
 from typing import Any, Final
 
@@ -50,13 +49,10 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.api = api
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
-        notify_enabled = self.config_entry.options.get("notification_enabled", False)
-        self._unsub_callback = None
-        self._notification_type = self.config_entry.options.get("notification_type")
+        notify_enabled = self.config_entry.options.get("notify_enabled", False)
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
-        self.integration_data = hass.data.get(DOMAIN, {})
-        time_str = self.config_entry.options.get("notification_time")
+        time_str = self.config_entry.options.get("notify_time")
         if time_str:
             try:
                 hour, minute = map(int, time_str.split(":"))
@@ -69,48 +65,8 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         async with asyncio.timeout(TIMEOUT):
             return await self.api.list_tasks(self.task_list_id)
 
-    def _extract_tasks(self):
-        """Get tasks from task lists from all coordinators."""
-        tasks = []
-        for entry_data in self.integration_data.values():
-            coordinators = (
-                entry_data.get("coordinators") if isinstance(entry_data, dict) else None
-            )
-            if not coordinators:
-                continue
-            for coord in coordinators:
-                if getattr(coord, "data", None):
-                    tasks.extend(coord.data)
-        return tasks
-
-    def _parse_due_date(self, task):
-        """Safely parse a task's due date."""
-        due_str = task.get("due")
-        if not due_str:
-            return None
-        try:
-            return isoparse(due_str).date()
-        except Exception:
-            _LOGGER.exception(
-                "Skipping invalid due date '%s' for task '%s'",
-                due_str,
-                task.get("title"),
-            )
-            return None
-
-    def get_daily_todo_tasks(self):
-        """Return a list of Google Tasks due today (from all coordinators)."""
-        today = date.today()
-        all_tasks = self._extract_tasks()
-        due_today = []
-        for task in all_tasks:
-            due_date = self._parse_due_date(task)
-            if due_date == today and task.get("status") != "completed":
-                due_today.append(task.get("title", ""))
-        return due_today
-
     async def schedule_daily_notification(self):
-        """Schedules daily notification if enabled in config entry options."""
+        """Schedules daily execution of fetchTaskandSendNotif()."""
         if not self._notify_enabled:
             return
         await self._schedule_daily_notification()
@@ -151,3 +107,12 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             _LOGGER.exception("An exception occurred while sending notification")
 
         await self.schedule_daily_notification()
+
+        """Private function that schedules daily execution of fetchTaskandSendNotif()."""
+        now = datetime.now()
+        target = datetime.combine(now.date(), self._notify_time)
+
+        if target <= now:
+            target += timedelta(days=1)
+
+        async_track_point_in_time(self._hass, self._notification_callback, target)
