@@ -20,7 +20,7 @@ type GoogleTasksConfigEntry = ConfigEntry[list[TaskUpdateCoordinator]]
 
 
 class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
-    """Coordinator for fetching Google Tasks for a Task List form the API."""
+    """Coordinator for fetching Google Tasks for a Task List form the API."""  # First commit
 
     config_entry: GoogleTasksConfigEntry
 
