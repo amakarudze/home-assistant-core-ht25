@@ -46,6 +46,14 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
         notify_enabled = self.config_entry.options.get("notify_enabled", False)
+        self._email_config = {
+            "sender_email": self.config_entry.options.get("SENDER_EMAIL"),
+            "recipient_email": self.config_entry.options.get("RECIPIENT_EMAIL"),
+            "sender_password": self.config_entry.options.get("SENDER_PASSWORD"),
+            "port": self.config_entry.options.get("PORT"),
+            "host_name": self.config_entry.options.get("HOST_NAME"),
+        }
+        self._access_token = self.config_entry.options.get("ACCESS_TOKEN")
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
         time_str = self.config_entry.options.get("notify_time")
@@ -61,6 +69,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         async with asyncio.timeout(TIMEOUT):
             return await self.api.list_tasks(self.task_list_id)
 
+    # Logic for scheduling daily notification
     async def schedule_daily_notification(self):
         """Schedules daily execution of fetchTaskandSendNotif()."""
         if not self._notify_enabled:
@@ -82,11 +91,11 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         try:
             # fetch_Task()
             # if notification_type is Email
-            # notification.send_email_notification(task_list)
+            # notification.send_email_notification(task_list, self._email_config )
             # if notification_type is Push
-            # notification.send_email_notification(task_list)
+            # notification.send_push_notification(task_list, self._access_token)
             _LOGGER.info("My scheduler is running")
         except Exception:
             _LOGGER.exception("Notification error")
 
-        self._schedule_daily_notification()
+        await self.schedule_daily_notification()
