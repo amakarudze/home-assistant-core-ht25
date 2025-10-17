@@ -54,7 +54,7 @@ def send_email_notification(
 
     server = None
     try:
-        server = smtplib.SMTP(host_name, port, timeout=SMTP_TIMEOUT)
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=SMTP_TIMEOUT)
         server.starttls()
         server.login(config_entry.options.get("smtp_username"), config_entry.options.get("smtp_password"))
         server.sendmail(
@@ -78,6 +78,10 @@ def send_email_notification(
     except smtplib.SMTPSenderRefused as err:
         raise GoogleTaskNotificationError(
             f"Sender email address refused: {config_entry.options.get('smtp_username')}"
+        ) from err
+    except TimeoutError as err:
+        raise GoogleTaskNotificationError(
+            f"SMTP connection timed out after {SMTP_TIMEOUT} seconds"
         ) from err
     except TimeoutError as err:
         raise GoogleTaskNotificationError(
