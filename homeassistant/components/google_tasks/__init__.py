@@ -65,6 +65,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
             for coordinator in coordinators
         )
     )
+    for coordinator in coordinators:
+        await coordinator.schedule_daily_notification()
     entry.runtime_data = coordinators
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
