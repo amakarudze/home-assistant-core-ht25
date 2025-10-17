@@ -93,7 +93,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             # if notification_type is Email
             # notification.send_email_notification(task_list, self._email_config )
             # if notification_type is Push
-            # notification.send_email_notification(task_list, self._access_token)
+            # notification.send_push_notification(task_list, self._access_token)
             _LOGGER.info("My scheduler is running")
         except Exception:
             _LOGGER.exception("Notification error")
