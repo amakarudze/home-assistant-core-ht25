@@ -12,9 +12,8 @@ from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
-from .const import DOMAIN
 from .notifications_email import send_email_notification
-from .notifications_push import send_pushbullet_notification
+from .todo import GoogleTaskTodoEntity as todo
 
 __all__ = ["DOMAIN"]
 _LOGGER = logging.getLogger(__name__)
@@ -49,10 +48,11 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.api = api
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
-        notify_enabled = self.config_entry.options.get("notify_enabled", False)
+        notify_enabled = self.config_entry.options.get("notification_enabled", False)
+        self._notification_type = self.config_entry.options.get("notification_type")
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
-        time_str = self.config_entry.options.get("notify_time")
+        time_str = self.config_entry.options.get("notification_time")
         if time_str:
             try:
                 hour, minute = map(int, time_str.split(":"))
@@ -65,54 +65,45 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         async with asyncio.timeout(TIMEOUT):
             return await self.api.list_tasks(self.task_list_id)
 
+    # Logic for scheduling daily notification
     async def schedule_daily_notification(self):
-        """Schedules daily execution of fetchTaskandSendNotif()."""
+        """Schedules daily execution of schedule_daily_notification()."""
+        # print("I am in first calling function of scheduler")
+        # print("Notify enabled flag is ", self._notify_enabled)
         if not self._notify_enabled:
             return
         await self._schedule_daily_notification()
 
     async def _schedule_daily_notification(self):
-        """Private function that schedules the daily notification callback."""
+        """Private function that schedules daily execution of _schedule_daily_notification()."""
+        # print("I am in second calling function of scheduler")
         now = datetime.datetime.now()
+        # print("Date Time now is ", now)
         target = datetime.datetime.combine(now.date(), self._notify_time)
+        # print("Target Scheduler time is ", target)
 
         if target <= now:
             target += timedelta(days=1)
-        if self._unsub_callback:
-            _LOGGER.debug("Cancelling previous scheduled callback")
-            self._unsub_callback()
-            self._unsub_callback = None
+            # print("New Target Scheduler time is ", target)
 
-        self._unsub_callback = async_track_point_in_time(
-            self.hass, self._notification_callback, target
-        )
+        async_track_point_in_time(self.hass, self._notification_callback, target)
 
     async def _notification_callback(self, now):
-        """Fetch daily tasks and sends notification and reschedules scheduler."""
+        """Run _notification_callback and reschedule."""
         try:
-            _LOGGER.info(
-                "Notification Scheduler got triggered!! Attempting to send daily notification"
-            )
-            task_list = self.get_daily_todo_tasks()
+            task_list = todo.get_daily_todo_items()
             if self._notification_type == "email":
-                send_email_notification(
-                    self.config_entry, task_list
-                )
+                await send_email_notification(self.hass, self.config_entry, task_list )
+                _LOGGER.info("I am in email block")
             if self._notification_type == "push":
-                await send_pushbullet_notification(
-                    self.config_entry, task_list
-                )
-
+                # await notification.send_push_notification(task_list)
+                _LOGGER.info("I am in push block")
+            # print("I am in third calling function of scheduler")
+            # print("My scheduler is running")
+            _LOGGER.info("My callback function ")
         except Exception:
-            _LOGGER.exception("An exception occurred while sending notification")
+            # print("Notification error")
+            _LOGGER.exception("My exception block")
 
+        # print("I am going to reset scheduler time now")
         await self.schedule_daily_notification()
-
-        """Private function that schedules daily execution of fetchTaskandSendNotif()."""
-        now = datetime.now()
-        target = datetime.combine(now.date(), self._notify_time)
-
-        if target <= now:
-            target += timedelta(days=1)
-
-        async_track_point_in_time(self._hass, self._notification_callback, target)
