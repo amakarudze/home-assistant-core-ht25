@@ -147,6 +147,14 @@ class GoogleTaskTodoListEntity(
         await self.coordinator.api.move(self._task_list_id, uid, previous=previous_uid)
         await self.coordinator.async_refresh()
 
+    def get_daily_todo_items(self) -> list[TodoItem] | None:
+        """Fetch tasks for the day for sending reminder to user."""
+        tasks = self.todo_items
+        daily_tasks = []
+        if tasks:
+            daily_tasks = [task for task in tasks if task.due == date.today()]
+        return daily_tasks
+
 
 def _order_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Order the task items response.
