@@ -80,7 +80,11 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     async def _notification_callback(self, now):
         """Run fetchTaskandSendNotif and reschedule."""
         try:
-            # fetchTaskandSendNotif(self._notify_time)
+            # fetch_Task()
+            # if notification_type is Email
+            # notification.send_email_notification(task_list)
+            # if notification_type is Push
+            # notification.send_email_notification(task_list)
             _LOGGER.info("My scheduler is running")
         except Exception:
             _LOGGER.exception("Notification error")
