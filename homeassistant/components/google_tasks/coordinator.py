@@ -45,18 +45,11 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.api = api
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
-        notify_enabled = self.config_entry.options.get("notify_enabled", False)
-        self._email_config = {
-            "sender_email": self.config_entry.options.get("SENDER_EMAIL"),
-            "recipient_email": self.config_entry.options.get("RECIPIENT_EMAIL"),
-            "sender_password": self.config_entry.options.get("SENDER_PASSWORD"),
-            "port": self.config_entry.options.get("PORT"),
-            "host_name": self.config_entry.options.get("HOST_NAME"),
-        }
-        self._access_token = self.config_entry.options.get("ACCESS_TOKEN")
+        notify_enabled = self.config_entry.options.get("notification_enabled", False)
+        self._notification_type = self.config_entry.options.get("notification_type")
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
-        time_str = self.config_entry.options.get("notify_time")
+        time_str = self.config_entry.options.get("notification_time")
         if time_str:
             try:
                 hour, minute = map(int, time_str.split(":"))
@@ -72,30 +65,42 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     # Logic for scheduling daily notification
     async def schedule_daily_notification(self):
         """Schedules daily execution of fetchTaskandSendNotif()."""
+        # print("I am in first calling function of scheduler")
+        # print("Notify enabled flag is ", self._notify_enabled)
         if not self._notify_enabled:
             return
         await self._schedule_daily_notification()
 
     async def _schedule_daily_notification(self):
         """Private function that schedules daily execution of fetchTaskandSendNotif()."""
-        now = datetime.now()
-        target = datetime.combine(now.date(), self._notify_time)
+        # print("I am in second calling function of scheduler")
+        now = datetime.datetime.now()
+        # print("Date Time now is ", now)
+        target = datetime.datetime.combine(now.date(), self._notify_time)
+        # print("Target Scheduler time is ", target)
 
         if target <= now:
             target += timedelta(days=1)
+            # print("New Target Scheduler time is ", target)
 
-        async_track_point_in_time(self._hass, self._notification_callback, target)
+        async_track_point_in_time(self.hass, self._notification_callback, target)
 
     async def _notification_callback(self, now):
         """Run fetchTaskandSendNotif and reschedule."""
         try:
             # fetch_Task()
-            # if notification_type is Email
-            # notification.send_email_notification(task_list, self._email_config )
-            # if notification_type is Push
-            # notification.send_push_notification(task_list, self._access_token)
-            _LOGGER.info("My scheduler is running")
+            if self._notification_type == "email":
+                # await notification.send_email_notification(task_list )
+                _LOGGER.info("I am in email block")
+            if self._notification_type == "push":
+                # await notification.send_push_notification(task_list)
+                _LOGGER.info("I am in push block")
+            # print("I am in third calling function of scheduler")
+            # print("My scheduler is running")
+            _LOGGER.info("My callback function ")
         except Exception:
-            _LOGGER.exception("Notification error")
+            # print("Notification error")
+            _LOGGER.exception("My exception block")
 
+        # print("I am going to reset scheduler time now")
         await self.schedule_daily_notification()
