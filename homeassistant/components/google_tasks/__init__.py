@@ -66,6 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
         )
     )
     entry.runtime_data = coordinators
+    # notification_enabled = entry.options.get(NOTIFICATION_ENABLED, False)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
