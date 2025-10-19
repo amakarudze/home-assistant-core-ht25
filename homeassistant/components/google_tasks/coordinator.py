@@ -8,6 +8,7 @@ from typing import Any, Final
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from dateutil.parser import isoparse
 
 from .api import AsyncConfigEntryAuth
 
@@ -16,11 +17,12 @@ _LOGGER = logging.getLogger(__name__)
 UPDATE_INTERVAL: Final = datetime.timedelta(minutes=30)
 TIMEOUT = 10
 
-type GoogleTasksConfigEntry = ConfigEntry[list[TaskUpdateCoordinator]]
+# Type alias for config entry storing multiple coordinators
+GoogleTasksConfigEntry = ConfigEntry[list["TaskUpdateCoordinator"]]
 
 
 class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
-    """Coordinator for fetching Google Tasks for a Task List form the API."""
+    """Coordinator for fetching Google Tasks for a Task List from the API."""
 
     config_entry: GoogleTasksConfigEntry
 
@@ -37,7 +39,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             hass,
             _LOGGER,
             config_entry=config_entry,
-            name=f"Google Tasks {task_list_id}",
+            name=f"Google Tasks {task_list_title} ({task_list_id})",
             update_interval=UPDATE_INTERVAL,
         )
         self.api = api
@@ -45,6 +47,18 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.task_list_title = task_list_title
 
     async def _async_update_data(self) -> list[dict[str, Any]]:
-        """Fetch tasks from API endpoint."""
+        """Fetch tasks from API endpoint with timeout."""
         async with asyncio.timeout(TIMEOUT):
-            return await self.api.list_tasks(self.task_list_id)
+            try:
+                tasks = await self.api.list_tasks(self.task_list_id)
+                _LOGGER.info(
+                    "Fetched %d tasks for list '%s'", len(tasks), self.task_list_title
+                )
+                for t in tasks:
+                    _LOGGER.debug("Task fetched: %s", t)
+                return tasks
+            except Exception as err:
+                _LOGGER.error(
+                    "Error fetching tasks for list '%s': %s", self.task_list_title, err
+                )
+                return []
