@@ -2,11 +2,13 @@
 
 import asyncio
 import datetime
+from datetime import time as dt_time, timedelta
 import logging
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
@@ -43,8 +45,70 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.api = api
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
+        notify_enabled = self.config_entry.options.get("notification_enabled", False)
+        self._email_config = {
+            "smtp_username": self.config_entry.options.get("smtp_username"),
+            "recipient_email": self.config_entry.options.get("recipient_email"),
+            "smtp_password": self.config_entry.options.get("smtp_password"),
+            "smtp_port": self.config_entry.options.get("smtp_port"),
+            "smtp_host": self.config_entry.options.get("smtp_host"),
+        }
+        self._access_token = self.config_entry.options.get("access_token")
+        self._notification_type = self.config_entry.options.get("notification_type")
+        self._notify_enabled = notify_enabled
+        self._notify_time = dt_time(8, 0)  # default
+        time_str = self.config_entry.options.get("notification_time")
+        if time_str:
+            try:
+                hour, minute = map(int, time_str.split(":"))
+                self._notify_time = dt_time(hour, minute)
+            except ValueError:
+                _LOGGER.warning("Invalid notify_time format in options: %s", time_str)
 
     async def _async_update_data(self) -> list[dict[str, Any]]:
         """Fetch tasks from API endpoint."""
         async with asyncio.timeout(TIMEOUT):
             return await self.api.list_tasks(self.task_list_id)
+
+    # Logic for scheduling daily notification
+    async def schedule_daily_notification(self):
+        """Schedules daily execution of fetchTaskandSendNotif()."""
+        # print("I am in first calling function of scheduler")
+        # print("Notify enabled flag is ", self._notify_enabled)
+        if not self._notify_enabled:
+            return
+        await self._schedule_daily_notification()
+
+    async def _schedule_daily_notification(self):
+        """Private function that schedules daily execution of fetchTaskandSendNotif()."""
+        # print("I am in second calling function of scheduler")
+        now = datetime.datetime.now()
+        # print("Date Time now is ", now)
+        target = datetime.datetime.combine(now.date(), self._notify_time)
+        # print("Target Scheduler time is ", target)
+
+        if target <= now:
+            target += timedelta(days=1)
+            # print("New Target Scheduler time is ", target)
+
+        async_track_point_in_time(self.hass, self._notification_callback, target)
+
+    async def _notification_callback(self, now):
+        """Run fetchTaskandSendNotif and reschedule."""
+        try:
+            # fetch_Task()
+            if self._notification_type == "email":
+                # notification.send_email_notification(task_list, self._email_config )
+                _LOGGER.info("I am in email block")
+            if self._notification_type == "push":
+                # notification.send_push_notification(task_list, self._access_token)
+                _LOGGER.info("I am in push block")
+            # print("I am in third calling function of scheduler")
+            # print("My scheduler is running")
+            _LOGGER.info("My callback function ")
+        except Exception:
+            # print("Notification error")
+            _LOGGER.exception("My exception block")
+
+        # print("I am going to reset scheduler time now")
+        await self.schedule_daily_notification()
