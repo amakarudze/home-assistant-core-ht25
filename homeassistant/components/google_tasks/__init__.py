@@ -80,6 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {"coordinators": coordinators}
 
+    # ---- Forward platform setup ----
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # ---- Notifications ----
@@ -139,7 +140,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
 
     return True
 
-        # --- TEMPORARY: trigger immediately for testing ---
+        # --- TEMPORARY: trigger immediately for push notification testing ---
         #--- hass.async_create_task(send_daily_task_notification(None))---
         #return True
         

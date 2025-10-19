@@ -3,7 +3,7 @@
   "name": "Google Tasks",
   "codeowners": ["@allenporter"],
   "config_flow": true,
-  "dependencies": ["application_credentials"],
+  "dependencies": ["application_credentials", "http", "notify"],
   "documentation": "https://www.home-assistant.io/integrations/google_tasks",
   "iot_class": "cloud_polling",
   "requirements": ["google-api-python-client==2.71.0","aiosmtplib>=3.0.1", "pushbullet.py>=0.12.0"],

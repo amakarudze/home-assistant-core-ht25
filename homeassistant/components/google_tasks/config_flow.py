@@ -77,10 +77,9 @@ class OAuth2FlowHandler(
             await self.hass.async_add_executor_job(cmd.execute)
 
         except HttpError as ex:
-            error = ex.reason
             return self.async_abort(
                 reason="access_not_configured",
-                description_placeholders={"message": error},
+                description_placeholders={"message": ex.reason},
             )
         except Exception:
             self.logger.exception("Unknown error occurred during OAuth2 flow")
@@ -91,7 +90,7 @@ class OAuth2FlowHandler(
 
         if self.source != SOURCE_REAUTH:
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=user_resource_info["name"], data=data)
+            return self.async_create_entry(title= user_resource_info["name"], data=data)
 
         reauth_entry = self._get_reauth_entry()
         if reauth_entry.unique_id:
@@ -108,7 +107,7 @@ class OAuth2FlowHandler(
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Confirm reauth dialog."""
+        """Confirm reauth."""
         if user_input is None:
             return self.async_show_form(step_id="reauth_confirm")
         return await self.async_step_user()
