@@ -152,7 +152,11 @@ class GoogleTaskTodoListEntity(
         tasks = self.todo_items
         daily_tasks = []
         if tasks:
-            daily_tasks = [task for task in tasks if task.due == date.today()]
+            daily_tasks = [
+                task
+                for task in tasks
+                if task.due == date.today() and task.status != "completed"
+            ]
         return daily_tasks
 
 
