@@ -67,9 +67,9 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         async with asyncio.timeout(TIMEOUT):
             return await self.api.list_tasks(self.task_list_id)
 
-    def get_daily_todo_tasks(self, hass: HomeAssistant) -> list[str] | None:
+    def get_daily_todo_tasks(self) -> list[str] | None:
         """Return a list of Google Tasks due today (from all coordinators)."""
-        integration_data = hass.data.get(DOMAIN, {})
+        integration_data = self.hass.data.get(DOMAIN, {})
         all_tasks = []
 
         for entry_id, entry_data in integration_data.items():
@@ -77,6 +77,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 for coord in entry_data["coordinators"]:
                     if hasattr(coord, "data") and coord.data:
                         all_tasks.extend(coord.data)
+                        print("all tasks are %s", all_tasks)
 
         today = date.today()
         due_today: list[str] = []
@@ -97,6 +98,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 continue
             if due_date == today and task.get("status") != "completed":
                 due_today.append(task.get("title", ""))
+        print("Due today tasks are: %s", due_today)
 
         return due_today
 
@@ -120,15 +122,15 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         if target <= now:
             target += timedelta(days=1)
 
-        async_track_point_in_time(self.hass, self._test_notification_callback, target)
+        #async_track_point_in_time(self.hass, self._test_notification_callback, target)
         print("In _schedule_daily_notification and scheduler was started and next target time is %s", target)
-        #await self._notification_callback(target)
+        await self._notification_callback(target)
 
     async def _notification_callback(self, now):
         """Run _notification_callback and reschedule."""
         try:
             print("Notification Scheduler got triggered!! Attempting to send daily notification")
-            task_list = self.get_daily_todo_tasks(self.hass)
+            task_list = self.get_daily_todo_tasks()
             print("In _notification_callback and task list is %s", task_list)
             print("Notification type is %s", self._notification_type)
             if self._notification_type == "email":
@@ -143,9 +145,9 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
 
             _LOGGER.info("My callback function ")
         except Exception:
-            _LOGGER.exception("My exception block")
+            _LOGGER.exception("An exception occured while sending notification")
 
-        await self.schedule_daily_notification()
+        #await self.schedule_daily_notification()
 
     async def _test_notification_callback(self, now):
         """Test Fetch daily tasks and reschedule."""
