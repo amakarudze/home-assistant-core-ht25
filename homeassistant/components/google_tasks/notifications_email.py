@@ -9,10 +9,12 @@ from .exceptions import GoogleTaskNotificationError
 
 _LOGGER = logging.getLogger(__name__)
 
-SMTP_TIMEOUT = 30 
+SMTP_TIMEOUT = 30
 
 
-async def async_send_email_notification(hass, config_entry, task_list: list[str]) -> None:
+async def async_send_email_notification(
+    hass, config_entry, task_list: list[str]
+) -> None:
     """Send a daily reminder email with the given task list."""
 
     if not task_list:
@@ -20,23 +22,35 @@ async def async_send_email_notification(hass, config_entry, task_list: list[str]
         return
 
     required_fields = ["smtp_username", "recipient_email", "smtp_password"]
-    missing_fields = [field for field in required_fields if not config_entry.options.get(field)]
+    missing_fields = [
+        field for field in required_fields if not config_entry.options.get(field)
+    ]
     if missing_fields:
         raise GoogleTaskNotificationError(
             f"Missing required email configuration fields: {', '.join(missing_fields)}"
         )
 
     smtp_host = config_entry.options.get("smtp_host", "")
+    print("SMTP Host is %s", smtp_host)
     try:
         smtp_port = int(config_entry.options.get("smtp_port", 587))
     except (ValueError, TypeError) as err:
         raise GoogleTaskNotificationError(
+<<<<<<< HEAD
             f"Invalid port number: {email_config.get('port')}"
         ) from err
 
     msg = MIMEMultipart()
     msg["From"] = email_config["sender_email"]
     msg["To"] = email_config["recipient_email"]
+=======
+            f"Invalid port number: {config_entry.options.get('smtp_port')}"
+        ) from err
+
+    msg = MIMEMultipart()
+    msg["From"] = config_entry.options.get("smtp_username")
+    msg["To"] = config_entry.options.get("recipient_email")
+>>>>>>> d53a2c80dcf (fix some errors but task listproblem still exists)
     msg["Subject"] = "Daily reminder"
 
     task_count = len(task_list)
@@ -52,15 +66,26 @@ async def async_send_email_notification(hass, config_entry, task_list: list[str]
     try:
         server = smtplib.SMTP(host_name, port, timeout=SMTP_TIMEOUT)
         server.starttls()
+<<<<<<< HEAD
         server.login(email_config["sender_email"], email_config["sender_password"])
         server.sendmail(
             email_config["sender_email"],
             email_config["recipient_email"],
+=======
+        server.login(config_entry.options.get("smtp_username"), config_entry.options.get("smtp_password"))
+        server.sendmail(
+            config_entry.options.get("smtp_username"),
+            config_entry.options.get("recipient_email"),
+>>>>>>> d53a2c80dcf (fix some errors but task listproblem still exists)
             msg.as_string(),
         )
         _LOGGER.info(
             "Email notification sent successfully to %s with %d task(s)",
+<<<<<<< HEAD
             email_config["recipient_email"],
+=======
+            config_entry.options.get("recipient_email"),
+>>>>>>> d53a2c80dcf (fix some errors but task listproblem still exists)
             task_count,
         )
     except smtplib.SMTPAuthenticationError as err:
@@ -69,11 +94,19 @@ async def async_send_email_notification(hass, config_entry, task_list: list[str]
         ) from err
     except smtplib.SMTPRecipientsRefused as err:
         raise GoogleTaskNotificationError(
+<<<<<<< HEAD
             f"Recipient email address refused: {email_config['recipient_email']}"
         ) from err
     except smtplib.SMTPSenderRefused as err:
         raise GoogleTaskNotificationError(
             f"Sender email address refused: {email_config['sender_email']}"
+=======
+            f"Recipient email address refused: {config_entry.options.get('recipient_email')}"
+        ) from err
+    except smtplib.SMTPSenderRefused as err:
+        raise GoogleTaskNotificationError(
+            f"Sender email address refused: {config_entry.options.get('smtp_username')}"
+>>>>>>> d53a2c80dcf (fix some errors but task listproblem still exists)
         ) from err
     except TimeoutError as err:
         raise GoogleTaskNotificationError(
