@@ -121,7 +121,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         print("In _schedule_daily_notification and target time is %s", target)
         await self._notification_callback(target)
 
-    async def _notification_callback(self, now):
+    async def _notification_callback(self, hass, config_entry, now):
         """Run _notification_callback and reschedule."""
         try:
             task_list = todo.get_daily_todo_items()
