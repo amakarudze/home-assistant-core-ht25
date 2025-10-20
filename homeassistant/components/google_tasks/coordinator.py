@@ -8,13 +8,11 @@ from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
-
-from notifications_email import async_send_email_notification
-from notifications_push import async_send_pushbullet_notification
+from .notifications_email import async_send_email_notification
+from .notifications_push import async_send_pushbullet_notification
 from .todo import GoogleTaskTodoEntity as todo
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,6 +66,10 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
 
     async def schedule_daily_notification(self):
         """Schedules daily execution of fetchTaskandSendNotif()."""
+        print(
+            "In schedule_daily_notification and notify enabled flag is %s",
+            self._notify_enabled,
+        )
         if not self._notify_enabled:
             return
         await self._schedule_daily_notification()
@@ -80,19 +82,26 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         if target <= now:
             target += timedelta(days=1)
 
-        async_track_point_in_time(self.hass, self._notification_callback, target)
+        # async_track_point_in_time(self.hass, self._notification_callback, target)
+        print("In _schedule_daily_notification and target time is %s", target)
+        await self._notification_callback(target)
 
     async def _notification_callback(self, now):
         """Fetch daily tasks and reschedule."""
         try:
             task_list = todo.get_daily_todo_items()
+            print("In _notification_callback and task list is %s", task_list)
             if self._notification_type == "email":
-                await async_send_email_notification(self.hass, self.config_entry, task_list)
+                await async_send_email_notification(
+                    self.hass, self.config_entry, task_list
+                )
                 _LOGGER.info("I am in email block")
             if self._notification_type == "push":
-                await async_send_pushbullet_notification(self.hass, self.config_entry, task_list)
+                await async_send_pushbullet_notification(
+                    self.hass, self.config_entry, task_list
+                )
                 _LOGGER.info("I am in push block")
-            
+
             _LOGGER.info("My callback function ")
         except Exception:
             _LOGGER.exception("My exception block")

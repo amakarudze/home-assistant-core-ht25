@@ -9,10 +9,12 @@ from .exceptions import GoogleTaskNotificationError
 
 _LOGGER = logging.getLogger(__name__)
 
-SMTP_TIMEOUT = 30 
+SMTP_TIMEOUT = 30
 
 
-async def async_send_email_notification(hass, config_entry, task_list: list[str]) -> None:
+async def async_send_email_notification(
+    hass, config_entry, task_list: list[str]
+) -> None:
     """Send a daily reminder email with the given task list."""
 
     if not task_list:
@@ -20,13 +22,16 @@ async def async_send_email_notification(hass, config_entry, task_list: list[str]
         return
 
     required_fields = ["smtp_username", "recipient_email", "smtp_password"]
-    missing_fields = [field for field in required_fields if not config_entry.options.get(field)]
+    missing_fields = [
+        field for field in required_fields if not config_entry.options.get(field)
+    ]
     if missing_fields:
         raise GoogleTaskNotificationError(
             f"Missing required email configuration fields: {', '.join(missing_fields)}"
         )
 
     smtp_host = config_entry.options.get("smtp_host", "")
+    print("SMTP Host is %s", smtp_host)
     try:
         smtp_port = int(config_entry.options.get("smtp_port", 587))
     except (ValueError, TypeError) as err:
