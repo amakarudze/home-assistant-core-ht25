@@ -121,7 +121,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         if target <= now:
             target += timedelta(days=1)
 
-        async_track_point_in_time(self.hass, self._notification_callback, target)
+        #async_track_point_in_time(self.hass, self._notification_callback, target)
         print("In _schedule_daily_notification and target time is %s", target)
         await self._notification_callback(target)
 
