@@ -11,6 +11,9 @@ _LOGGER = logging.getLogger(__name__)
 async def async_send_pushbullet_notification(hass, config_entry, task_list):
     """Send a Pushbullet notification."""
     access_token = config_entry.options.get(ACCESS_TOKEN)
+    api_endpoint = config_entry.options.get("api_endpoint")
+    print("Pushbullet Access Token is %s", access_token)
+    print("Pushbullet API Endpoint is %s", api_endpoint)
     title = "Google Tasks - Daily Summary"
     message = "Today's Google Tasks:\n" + "\n".join(f"- {t}" for t in task_list)
     if not access_token:
@@ -20,7 +23,7 @@ async def async_send_pushbullet_notification(hass, config_entry, task_list):
     async with ClientSession() as session:
         try:
             async with session.post(
-                "https://api.pushbullet.com/v2/pushes",
+                api_endpoint,
                 headers={
                     "Access-Token": access_token,
                     "Content-Type": "application/json",

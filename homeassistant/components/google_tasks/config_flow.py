@@ -22,6 +22,7 @@ from homeassistant.helpers import config_entry_oauth2_flow
 
 from .const import (
     ACCESS_TOKEN,
+    API_ENDPOINT,
     DOMAIN,
     NOTIFICATION_EMAIL,
     NOTIFICATION_ENABLED,
@@ -209,10 +210,11 @@ class OptionsFlowHandler(OptionsFlow):
         """Collect push notification configuration."""
         if user_input:
             data = {
-                NOTIFICATION_TYPE: NOTIFICATION_TYPE,
+                NOTIFICATION_TYPE: NOTIFICATION_PUSH,
                 NOTIFICATION_ENABLED: self.context.get("notification_enabled"),
                 NOTIFICATION_TIME: self.context.get("notification_time"),
                 ACCESS_TOKEN: user_input["access_token"],
+                API_ENDPOINT: user_input["api_endpoint"],
             }
             return self.async_create_entry(title="Push Notifications", data=data)
 
@@ -224,6 +226,10 @@ class OptionsFlowHandler(OptionsFlow):
                         ACCESS_TOKEN,
                         default=self.config_entry.options.get(ACCESS_TOKEN),
                     ): str,
-                }
+                    vol.Required(
+                        API_ENDPOINT,
+                        default=self.config_entry.options.get(API_ENDPOINT),
+                    ): str,
+                },
             ),
         )

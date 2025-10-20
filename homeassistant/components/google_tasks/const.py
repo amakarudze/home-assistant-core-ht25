@@ -20,6 +20,7 @@ class TaskStatus(StrEnum):
 
 
 ACCESS_TOKEN = "access_token"
+API_ENDPOINT = "api_endpoint"
 NOTIFICATION_ENABLED = "notification_enabled"
 NOTIFICATION_EMAIL = "email"
 NOTIFICATION_PUSH = "push"
