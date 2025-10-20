@@ -8,12 +8,34 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import HttpRequest
+import voluptuous as vol
 
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    ConfigEntry,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_ACCESS_TOKEN, CONF_TOKEN
+from homeassistant.core import callback
 from homeassistant.helpers import config_entry_oauth2_flow
 
-from .const import DOMAIN, OAUTH2_SCOPES
+from .const import (
+    ACCESS_TOKEN,
+    API_ENDPOINT,
+    DOMAIN,
+    NOTIFICATION_EMAIL,
+    NOTIFICATION_ENABLED,
+    NOTIFICATION_PUSH,
+    NOTIFICATION_TIME,
+    NOTIFICATION_TYPE,
+    OAUTH2_SCOPES,
+    RECIPIENT_EMAIL,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_USERNAME,
+)
 
 
 class OAuth2FlowHandler(
@@ -95,3 +117,119 @@ class OAuth2FlowHandler(
         if user_input is None:
             return self.async_show_form(step_id="reauth_confirm")
         return await self.async_step_user()
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Get config entries for Google Task notifications."""
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(OptionsFlow):
+    """Create config options for Google Tasks notifications."""
+
+    def __init__(self, config_entry) -> None:
+        """Initialise config entries."""
+        self._config_entry = config_entry
+
+    async def async_step_init(self, user_input: dict[str, Any]) -> ConfigFlowResult:
+        """Setup config entries for notifications."""
+        if user_input:
+            notification_type = user_input[NOTIFICATION_TYPE]
+            notification_enabled = user_input[NOTIFICATION_ENABLED]
+            notification_time = user_input[NOTIFICATION_TIME]
+            self.context["notification_type"] = notification_type  # type: ignore[typeddict-unknown-key]
+            self.context["notification_enabled"] = notification_enabled  # type: ignore[typeddict-unknown-key]
+            self.context["notification_time"] = notification_time  # type: ignore[typeddict-unknown-key]
+
+            if notification_type == "email":
+                return await self.async_step_email()
+            if notification_type == "push":
+                return await self.async_step_push()
+
+        options_schema = vol.Schema(
+            {
+                vol.Optional(
+                    NOTIFICATION_ENABLED,
+                    default=self.config_entry.options.get(NOTIFICATION_ENABLED, False),
+                ): bool,
+                vol.Required(NOTIFICATION_TYPE): vol.In(
+                    [NOTIFICATION_EMAIL, NOTIFICATION_PUSH]
+                ),
+                vol.Optional(
+                    NOTIFICATION_TIME,
+                    default=self.config_entry.options.get(NOTIFICATION_TIME, "07:00"),
+                ): str,
+            }
+        )
+
+        return self.async_show_form(step_id="init", data_schema=options_schema)
+
+    async def async_step_email(self, user_input=None) -> ConfigFlowResult:
+        """Collect email notification configuration."""
+        if user_input:
+            data = {
+                NOTIFICATION_TYPE: NOTIFICATION_EMAIL,
+                NOTIFICATION_ENABLED: self.context.get("notification_enabled"),
+                NOTIFICATION_TIME: self.context.get("notification_time"),
+                SMTP_HOST: user_input["smtp_host"],
+                SMTP_PORT: user_input["smtp_port"],
+                SMTP_USERNAME: user_input["smtp_username"],
+                SMTP_PASSWORD: user_input["smtp_password"],
+                RECIPIENT_EMAIL: user_input["recipient_email"],
+            }
+            return self.async_create_entry(title="Email Notifications", data=data)
+
+        return self.async_show_form(
+            step_id="email",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        SMTP_HOST, default=self.config_entry.options.get(SMTP_HOST)
+                    ): str,
+                    vol.Required(
+                        SMTP_PORT, default=self.config_entry.options.get(SMTP_PORT, 587)
+                    ): int,
+                    vol.Required(
+                        SMTP_USERNAME,
+                        default=self.config_entry.options.get(SMTP_USERNAME),
+                    ): str,
+                    vol.Required(
+                        SMTP_PASSWORD,
+                        default=self.config_entry.options.get(SMTP_PASSWORD),
+                    ): str,
+                    vol.Required(
+                        RECIPIENT_EMAIL,
+                        default=self.config_entry.options.get(RECIPIENT_EMAIL),
+                    ): str,
+                }
+            ),
+        )
+
+    async def async_step_push(self, user_input=None) -> ConfigFlowResult:
+        """Collect push notification configuration."""
+        if user_input:
+            data = {
+                NOTIFICATION_TYPE: NOTIFICATION_PUSH,
+                NOTIFICATION_ENABLED: self.context.get("notification_enabled"),
+                NOTIFICATION_TIME: self.context.get("notification_time"),
+                ACCESS_TOKEN: user_input["access_token"],
+                API_ENDPOINT: user_input["api_endpoint"],
+            }
+            return self.async_create_entry(title="Push Notifications", data=data)
+
+        return self.async_show_form(
+            step_id="push",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        ACCESS_TOKEN,
+                        default=self.config_entry.options.get(ACCESS_TOKEN),
+                    ): str,
+                    vol.Required(
+                        API_ENDPOINT,
+                        default=self.config_entry.options.get(API_ENDPOINT),
+                    ): str,
+                },
+            ),
+        )
