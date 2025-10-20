@@ -11,11 +11,13 @@ from dateutil.parser import isoparse
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.event import async_track_point_in_time
 
 from .api import AsyncConfigEntryAuth
 from .const import DOMAIN
 from .notifications_email import async_send_email_notification
 from .notifications_push import async_send_pushbullet_notification
+
 
 __all__ = ["DOMAIN"]
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +54,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.task_list_title = task_list_title
         notify_enabled = self.config_entry.options.get("notification_enabled", False)
         self._notification_type = self.config_entry.options.get("notification_type")
+        print("Notification type in coordinator is %s", self._notification_type)
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
         time_str = self.config_entry.options.get("notification_time")
@@ -118,7 +121,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         if target <= now:
             target += timedelta(days=1)
 
-        # async_track_point_in_time(self.hass, self._notification_callback, target)
+        async_track_point_in_time(self.hass, self._notification_callback, target)
         print("In _schedule_daily_notification and target time is %s", target)
         await self._notification_callback(target)
 
@@ -127,12 +130,14 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         try:
             task_list = self.get_daily_todo_tasks(self.hass)
             print("In _notification_callback and task list is %s", task_list)
+            print("Notification type is %s", self._notification_type)   
             if self._notification_type == "email":
                 await async_send_email_notification(
                     self.hass, self.config_entry, task_list
                 )
                 _LOGGER.info("I am in email block")
             if self._notification_type == "push":
+                print("I am in push block and notification type is %s", self._notification_type )
                 await async_send_pushbullet_notification(
                     self.hass, self.config_entry, task_list
                 )
