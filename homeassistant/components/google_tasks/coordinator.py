@@ -67,7 +67,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         async with asyncio.timeout(TIMEOUT):
             return await self.api.list_tasks(self.task_list_id)
 
-    async def get_daily_todo_tasks(self, hass: HomeAssistant) -> list[str] | None:
+    def get_daily_todo_tasks(self, hass: HomeAssistant) -> list[str] | None:
         """Return a list of Google Tasks due today (from all coordinators)."""
         integration_data = hass.data.get(DOMAIN, {})
         all_tasks = []
@@ -125,7 +125,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     async def _notification_callback(self, now):
         """Fetch daily tasks and reschedule."""
         try:
-            task_list = self.get_daily_todo_tasks()
+            task_list = self.get_daily_todo_tasks(self.hass)
             print("In _notification_callback and task list is %s", task_list)
             if self._notification_type == "email":
                 await async_send_email_notification(
@@ -142,4 +142,4 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         except Exception:
             _LOGGER.exception("My exception block")
 
-        await self.schedule_daily_notification()
+        #await self.schedule_daily_notification()

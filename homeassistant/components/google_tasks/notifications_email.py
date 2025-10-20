@@ -36,12 +36,12 @@ async def async_send_email_notification(
         smtp_port = int(config_entry.options.get("smtp_port", 587))
     except (ValueError, TypeError) as err:
         raise GoogleTaskNotificationError(
-            f"Invalid port number: {config_entry.get('smtp_port')}"
+            f"Invalid port number: {config_entry.options.get('smtp_port')}"
         ) from err
 
     msg = MIMEMultipart()
-    msg["From"] = config_entry["smtp_username"]
-    msg["To"] = config_entry["recipient_email"]
+    msg["From"] = config_entry.options.get("smtp_username")
+    msg["To"] = config_entry.options.get("recipient_email")
     msg["Subject"] = "Daily reminder"
 
     task_count = len(task_list)
@@ -57,15 +57,15 @@ async def async_send_email_notification(
     try:
         server = smtplib.SMTP(smtp_host, smtp_port, timeout=SMTP_TIMEOUT)
         server.starttls()
-        server.login(config_entry["smtp_username"], config_entry["smtp_password"])
+        server.login(config_entry.options.get("smtp_username"), config_entry.options.get("smtp_password"))
         server.sendmail(
-            config_entry["smtp_username"],
-            config_entry["recipient_email"],
+            config_entry.options.get("smtp_username"),
+            config_entry.options.get("recipient_email"),
             msg.as_string(),
         )
         _LOGGER.info(
             "Email notification sent successfully to %s with %d task(s)",
-            config_entry["recipient_email"],
+            config_entry.options.get("recipient_email"),
             task_count,
         )
     except smtplib.SMTPAuthenticationError as err:
@@ -74,11 +74,11 @@ async def async_send_email_notification(
         ) from err
     except smtplib.SMTPRecipientsRefused as err:
         raise GoogleTaskNotificationError(
-            f"Recipient email address refused: {config_entry['recipient_email']}"
+            f"Recipient email address refused: {config_entry.options.get('recipient_email')}"
         ) from err
     except smtplib.SMTPSenderRefused as err:
         raise GoogleTaskNotificationError(
-            f"Sender email address refused: {config_entry['smtp_username']}"
+            f"Sender email address refused: {config_entry.options.get('smtp_username')}"
         ) from err
     except TimeoutError as err:
         raise GoogleTaskNotificationError(
