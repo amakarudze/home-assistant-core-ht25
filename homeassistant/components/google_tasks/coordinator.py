@@ -52,6 +52,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
         notify_enabled = self.config_entry.options.get("notification_enabled", False)
+        self._unsub_callback = None
         self._notification_type = self.config_entry.options.get("notification_type")
         print("Notification type in coordinator is %s", self._notification_type)
         self._notify_enabled = notify_enabled
@@ -123,8 +124,12 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
 
         if target <= now:
             target += timedelta(days=1)
+        if self._unsub_callback:
+            _LOGGER.debug("Cancelling previous scheduled callback.")
+            self._unsub_callback()
+            self._unsub_callback = None
 
-        #async_track_point_in_time(self.hass, self._test_notification_callback, target)
+        #self._unsub_callback = async_track_point_in_time(self.hass, self._test_notification_callback, target)
         print("In _schedule_daily_notification and scheduler was started and next target time is %s", target)
         await self._notification_callback(target)
 
