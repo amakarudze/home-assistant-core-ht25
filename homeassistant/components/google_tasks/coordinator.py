@@ -87,12 +87,12 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
 
         async_track_point_in_time(self.hass, self._notification_callback, target)
 
-    async def _notification_callback(self, hass, config_entry, now):
+    async def _notification_callback(self, now):
         """Run _notification_callback and reschedule."""
         try:
             task_list = todo.get_daily_todo_items()
             if self._notification_type == "email":
-                await notification.send_email_notification(hass, config_entry, task_list )
+                await send_email_notification(self.hass, self.config_entry, task_list )
                 _LOGGER.info("I am in email block")
             if self._notification_type == "push":
                 # await notification.send_push_notification(task_list)
