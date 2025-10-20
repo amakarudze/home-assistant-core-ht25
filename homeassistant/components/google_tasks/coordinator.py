@@ -13,6 +13,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
 
+# from .todo import GoogleTaskTodoEntity as todo
+
 _LOGGER = logging.getLogger(__name__)
 
 UPDATE_INTERVAL: Final = datetime.timedelta(minutes=30)
@@ -88,7 +90,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     async def _notification_callback(self, now):
         """Run fetchTaskandSendNotif and reschedule."""
         try:
-            # fetch_Task()
+            # task_list = todo.get_daily_todo_items()
             if self._notification_type == "email":
                 # await notification.send_email_notification(task_list )
                 _LOGGER.info("I am in email block")
