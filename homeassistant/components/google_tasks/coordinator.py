@@ -46,14 +46,6 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
         notify_enabled = self.config_entry.options.get("notification_enabled", False)
-        self._email_config = {
-            "smtp_username": self.config_entry.options.get("smtp_username"),
-            "recipient_email": self.config_entry.options.get("recipient_email"),
-            "smtp_password": self.config_entry.options.get("smtp_password"),
-            "smtp_port": self.config_entry.options.get("smtp_port"),
-            "smtp_host": self.config_entry.options.get("smtp_host"),
-        }
-        self._access_token = self.config_entry.options.get("access_token")
         self._notification_type = self.config_entry.options.get("notification_type")
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
@@ -98,10 +90,10 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         try:
             # fetch_Task()
             if self._notification_type == "email":
-                # notification.send_email_notification(task_list, self._email_config )
+                # await notification.send_email_notification(task_list )
                 _LOGGER.info("I am in email block")
             if self._notification_type == "push":
-                # notification.send_push_notification(task_list, self._access_token)
+                # await notification.send_push_notification(task_list)
                 _LOGGER.info("I am in push block")
             # print("I am in third calling function of scheduler")
             # print("My scheduler is running")
