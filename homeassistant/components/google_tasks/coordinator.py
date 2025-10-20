@@ -50,6 +50,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
         notify_enabled = self.config_entry.options.get("notification_enabled", False)
+        self._unsub_callback = None
         self._notification_type = self.config_entry.options.get("notification_type")
         print("Notification type in coordinator is %s", self._notification_type)
         self._notify_enabled = notify_enabled
@@ -121,39 +122,34 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
 
         if target <= now:
             target += timedelta(days=1)
+        if self._unsub_callback:
+            _LOGGER.debug("Cancelling previous scheduled callback.")
+            self._unsub_callback()
+            self._unsub_callback = None
 
-        #async_track_point_in_time(self.hass, self._test_notification_callback, target)
+        #self._unsub_callback = async_track_point_in_time(self.hass, self._test_notification_callback, target)
         print("In _schedule_daily_notification and scheduler was started and next target time is %s", target)
         await self._notification_callback(target)
 
     async def _notification_callback(self, now):
-        """Run _notification_callback and reschedule."""
+        """Fetch daily tasks and sends notifcation and reschedules scheduler."""
         try:
             print("Notification Scheduler got triggered!! Attempting to send daily notification")
             task_list = self.get_daily_todo_tasks()
             print("In _notification_callback and task list is %s", task_list)
             print("Notification type is %s", self._notification_type)
             if self._notification_type == "email":
-                await send_email_notification(self.hass, self.config_entry, task_list )
-                _LOGGER.info("I am in email block")
+                await async_send_email_notification(
+                    self.hass, self.config_entry, task_list
+                )
+                print("I am in email block")
             if self._notification_type == "push":
                 print("I am in push block and notification type is %s", self._notification_type )
                 await async_send_pushbullet_notification(
                     self.hass, self.config_entry, task_list
                 )
-                _LOGGER.info("I am in push block")
 
-            _LOGGER.info("My callback function ")
         except Exception:
             _LOGGER.exception("An exception occured while sending notification")
 
-        #await self.schedule_daily_notification()
-
-    async def _test_notification_callback(self, now):
-        """Test Fetch daily tasks and reschedule."""
-        try:
-             print("Scheduler got triggered!!")
-        except Exception:
-            _LOGGER.exception("My exception block")
-
-        await self.schedule_daily_notification()
+        #await self.schedule_daily_notification()   
