@@ -18,12 +18,6 @@ async def test_schedule_daily_notification_enabled(hass: HomeAssistant) -> None:
     config_entry.options = {
         "notification_enabled": True,
         "notification_time": "13:30",
-        "smtp_username": "sender@example.com",
-        "recipient_email": "receiver@example.com",
-        "smtp_password": "pass",
-        "smtp_port": 587,
-        "smtp_host": "smtp.example.com",
-        "access_token": "fake_token",
         "notification_type": "email",
     }
 
