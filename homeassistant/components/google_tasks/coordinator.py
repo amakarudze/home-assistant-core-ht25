@@ -2,7 +2,8 @@
 
 import asyncio
 import datetime
-from datetime import time as dt_time, timedelta
+from datetime import time as dt_time, timedelta, date
+from dateutil.parser import isoparse
 import logging
 from typing import Any, Final
 
@@ -12,11 +13,12 @@ from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
-
-from notifications_email import async_send_email_notification
-from notifications_push import async_send_pushbullet_notification
+from .const import DOMAIN
+from .notifications_email import async_send_email_notification
+from .notifications_push import async_send_pushbullet_notification
 from .todo import GoogleTaskTodoEntity as todo
 
+__all__ = ["DOMAIN"]
 _LOGGER = logging.getLogger(__name__)
 
 UPDATE_INTERVAL: Final = datetime.timedelta(minutes=30)
@@ -66,6 +68,39 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         async with asyncio.timeout(TIMEOUT):
             return await self.api.list_tasks(self.task_list_id)
 
+    async def get_daily_todo_tasks(self, hass: HomeAssistant)  -> list[str] | None:
+        """Return a list of Google Tasks due today (from all coordinators)."""
+        integration_data = hass.data.get(DOMAIN, {})
+        all_tasks = []
+
+        for entry_id, entry_data in integration_data.items():
+            if isinstance(entry_data, dict) and "coordinators" in entry_data:
+                for coord in entry_data["coordinators"]:
+                    if hasattr(coord, "data") and coord.data:
+                        all_tasks.extend(coord.data)
+
+        today = date.today()
+        due_today: list[str] = []
+
+        for task in all_tasks:
+            due_str = task.get("due")
+            if not due_str:
+                continue
+            try:
+                due_date = isoparse(due_str).date()
+            except Exception as err:
+                _LOGGER.warning(
+                    "Failed to parse due date '%s' for task '%s': %s",
+                    due_str,
+                    task.get("title"),
+                    err,
+                )
+                continue
+            if due_date == today and task.get("status") != "completed":
+                due_today.append(task.get("title", ""))
+
+        return due_today
+
     async def schedule_daily_notification(self):
         """Schedules daily execution of fetchTaskandSendNotif()."""
         if not self._notify_enabled:
@@ -85,7 +120,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
     async def _notification_callback(self, now):
         """Fetch daily tasks and reschedule."""
         try:
-            task_list = todo.get_daily_todo_items()
+            task_list = self.get_daily_todo_tasks()
             if self._notification_type == "email":
                 await async_send_email_notification(self.hass, self.config_entry, task_list)
                 _LOGGER.info("I am in email block")
