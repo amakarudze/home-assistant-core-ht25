@@ -4,74 +4,50 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import logging
 import smtplib
-<<<<<<< HEAD
-import socket
-=======
->>>>>>> 558a5dd53ce (merge payel-contrib branch without testing)
 
 from .exceptions import GoogleTaskNotificationError
 
 _LOGGER = logging.getLogger(__name__)
 
-SMTP_TIMEOUT = 30  # SMTP timeout in seconds
+SMTP_TIMEOUT = 30 
 
 
-def send_email_notification(task_list: list[str], email_config: dict[str, str]) -> None:
-    """Send a daily reminder email with the given task list.
+async def async_send_email_notification(hass, config_entry, task_list: list[str]) -> None:
+    """Send a daily reminder email with the given task list."""
 
-    Args:
-        task_list: List of task titles to include in the email
-        email_config: Dictionary containing email configuration with keys:
-            - sender_email: Email address to send from
-            - recipient_email: Email address to send to
-            - sender_password: Password for sender email
-            - host_name: SMTP server hostname (optional, defaults to smtp.gmail.com)
-            - port: SMTP server port (optional, defaults to 587)
-
-    Raises:
-        GoogleTaskNotificationError: If email sending fails
-    """
-    # Validate input parameters
     if not task_list:
         _LOGGER.warning("Task list is empty, skipping email notification")
         return
 
-    if not email_config:
-        raise GoogleTaskNotificationError("Email configuration is missing")
-
-    # Validate required email config fields
-    required_fields = ["sender_email", "recipient_email", "sender_password"]
-    missing_fields = [field for field in required_fields if not email_config.get(field)]
+    required_fields = ["smtp_username", "recipient_email", "smtp_password"]
+    missing_fields = [field for field in required_fields if not config_entry.options.get(field)]
     if missing_fields:
         raise GoogleTaskNotificationError(
             f"Missing required email configuration fields: {', '.join(missing_fields)}"
         )
 
-    # Get SMTP settings with defaults
-    host_name = email_config.get("host_name", "smtp.gmail.com")
+    smtp_host = config_entry.options.get("smtp_host", "")
     try:
-        port = int(email_config.get("port", 587))
+        smtp_port = int(config_entry.options.get("smtp_port", 587))
     except (ValueError, TypeError) as err:
         raise GoogleTaskNotificationError(
             f"Invalid port number: {email_config.get('port')}"
         ) from err
 
-    # Create the email content
     msg = MIMEMultipart()
     msg["From"] = email_config["sender_email"]
     msg["To"] = email_config["recipient_email"]
     msg["Subject"] = "Daily reminder"
 
     task_count = len(task_list)
-    body_lines = [
-        f"Here are your {task_count} Google Tasks to-do item(s) for today:",
-        "",
-    ]
-    body_lines.extend(f"- {task}" for task in task_list)
-    body = "\n".join(body_lines)
+    body = (
+        "Hi,\nGentle Reminder! \n\nThis is your To-do list for today:\n"
+        f"You are pending with {task_count} task(s):\n\n"
+        + "\n".join(f"- {task}" for task in task_list)
+        + "\n\nBest Wishes, \nHome Assistant"
+    )
     msg.attach(MIMEText(body, "plain"))
 
-    # Send email with error handling
     server = None
     try:
         server = smtplib.SMTP(host_name, port, timeout=SMTP_TIMEOUT)
