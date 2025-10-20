@@ -65,9 +65,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
             for coordinator in coordinators
         )
     )
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+    "coordinators": coordinators,
+    "task_lists": task_lists,  # <-- this line adds the list to shared data
+}
     # call coordinator to schedule daily notification
     for coordinator in coordinators:
         await coordinator.schedule_daily_notification()
+    
+    
     entry.runtime_data = coordinators
     # notification_enabled = entry.options.get(NOTIFICATION_ENABLED, False)
 
