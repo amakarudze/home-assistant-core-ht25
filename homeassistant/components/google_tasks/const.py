@@ -17,3 +17,16 @@ class TaskStatus(StrEnum):
 
     NEEDS_ACTION = "needsAction"
     COMPLETED = "completed"
+
+
+ACCESS_TOKEN = "access_token"
+NOTIFICATION_ENABLED = "notification_enabled"
+NOTIFICATION_EMAIL = "email"
+NOTIFICATION_PUSH = "push"
+NOTIFICATION_TIME = "notification_time"
+NOTIFICATION_TYPE = "notification_type"
+SMTP_HOST = "smtp_host"
+SMTP_PORT = "smtp_port"
+SMTP_USERNAME = "smtp_username"
+SMTP_PASSWORD = "smtp_password"
+RECIPIENT_EMAIL = "recipient_email"

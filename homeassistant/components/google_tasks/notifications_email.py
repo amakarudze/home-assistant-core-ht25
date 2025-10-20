@@ -12,17 +12,19 @@ _LOGGER = logging.getLogger(__name__)
 SMTP_TIMEOUT = 30  # SMTP timeout in seconds
 
 
-def send_email_notification(task_list: list[str], email_config: dict[str, str]) -> None:
+async def send_email_notification(hass, config_entry, task_list: list[str]) -> None:
     """Send a daily reminder email with the given task list.
 
     Args:
-        task_list: List of task titles to include in the email
-        email_config: Dictionary containing email configuration with keys:
-            - sender_email: Email address to send from
+        hass: Home Assistant instance
+        config_entry: Configuration entry containing SMTP settings
+            - smtp_username: Email address to send from
             - recipient_email: Email address to send to
-            - sender_password: Password for sender email
-            - host_name: SMTP server hostname (optional, defaults to smtp.gmail.com)
-            - port: SMTP server port (optional, defaults to 587)
+            - smtp_password: Password for sender email
+            - smtp_host: SMTP server hostname
+            - smtp_port: SMTP server port (optional, defaults to 587)
+        task_list: List of task titles to include in the email
+
 
     Raises:
         GoogleTaskNotificationError: If email sending fails
@@ -32,55 +34,51 @@ def send_email_notification(task_list: list[str], email_config: dict[str, str]) 
         _LOGGER.warning("Task list is empty, skipping email notification")
         return
 
-    if not email_config:
-        raise GoogleTaskNotificationError("Email configuration is missing")
-
     # Validate required email config fields
-    required_fields = ["sender_email", "recipient_email", "sender_password"]
-    missing_fields = [field for field in required_fields if not email_config.get(field)]
+    required_fields = ["smtp_username", "recipient_email", "smtp_password"]
+    missing_fields = [field for field in required_fields if not config_entry.get(field)]
     if missing_fields:
         raise GoogleTaskNotificationError(
             f"Missing required email configuration fields: {', '.join(missing_fields)}"
         )
 
     # Get SMTP settings with defaults
-    host_name = email_config.get("host_name", "smtp.gmail.com")
+    smtp_host = config_entry.get("smtp_host", "")
     try:
-        port = int(email_config.get("port", 587))
+        smtp_port = int(config_entry.get("smtp_port", 587))
     except (ValueError, TypeError) as err:
         raise GoogleTaskNotificationError(
-            f"Invalid port number: {email_config.get('port')}"
+            f"Invalid port number: {config_entry.get('smtp_port')}"
         ) from err
 
     # Create the email content
     msg = MIMEMultipart()
-    msg["From"] = email_config["sender_email"]
-    msg["To"] = email_config["recipient_email"]
+    msg["From"] = config_entry["smtp_username"]
+    msg["To"] = config_entry["recipient_email"]
     msg["Subject"] = "Daily reminder"
 
     task_count = len(task_list)
-    body_lines = [
-        f"Here are your {task_count} Google Tasks to-do item(s) for today:",
-        "",
-    ]
-    body_lines.extend(f"- {task}" for task in task_list)
-    body = "\n".join(body_lines)
+    body = (
+        "Hi,\nGentle Reminder! \n\nThis is your To-do list for today:\n"
+        + "\n".join(f"- {task}" for task in task_list)
+        + "\n\nBest Wishes, \nHome Assistant"
+    )
     msg.attach(MIMEText(body, "plain"))
 
     # Send email with error handling
     server = None
     try:
-        server = smtplib.SMTP(host_name, port, timeout=SMTP_TIMEOUT)
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=SMTP_TIMEOUT)
         server.starttls()
-        server.login(email_config["sender_email"], email_config["sender_password"])
+        server.login(config_entry["smtp_username"], config_entry["smtp_password"])
         server.sendmail(
-            email_config["sender_email"],
-            email_config["recipient_email"],
+            config_entry["smtp_username"],
+            config_entry["recipient_email"],
             msg.as_string(),
         )
         _LOGGER.info(
             "Email notification sent successfully to %s with %d task(s)",
-            email_config["recipient_email"],
+            config_entry["recipient_email"],
             task_count,
         )
     except smtplib.SMTPAuthenticationError as err:
@@ -89,11 +87,11 @@ def send_email_notification(task_list: list[str], email_config: dict[str, str]) 
         ) from err
     except smtplib.SMTPRecipientsRefused as err:
         raise GoogleTaskNotificationError(
-            f"Recipient email address refused: {email_config['recipient_email']}"
+            f"Recipient email address refused: {config_entry['recipient_email']}"
         ) from err
     except smtplib.SMTPSenderRefused as err:
         raise GoogleTaskNotificationError(
-            f"Sender email address refused: {email_config['sender_email']}"
+            f"Sender email address refused: {config_entry['smtp_username']}"
         ) from err
     except TimeoutError as err:
         raise GoogleTaskNotificationError(
