@@ -60,6 +60,7 @@ async def send_email_notification(hass, config_entry, task_list: list[str]) -> N
     task_count = len(task_list)
     body = (
         "Hi,\nGentle Reminder! \n\nThis is your To-do list for today:\n"
+        f"You are pending with {task_count} task(s):\n\n"
         + "\n".join(f"- {task}" for task in task_list)
         + "\n\nBest Wishes, \nHome Assistant"
     )
