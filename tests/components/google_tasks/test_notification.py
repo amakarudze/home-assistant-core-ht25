@@ -1,4 +1,4 @@
-"""Tests for Google Tasks notification functionality."""
+"""Tests for Google Tasks email notification functionality."""
 
 import smtplib
 from unittest.mock import AsyncMock, Mock, patch
@@ -8,9 +8,6 @@ import pytest
 from homeassistant.components.google_tasks.exceptions import GoogleTaskNotificationError
 from homeassistant.components.google_tasks.notifications_email import (
     async_send_email_notification,
-)
-from homeassistant.components.google_tasks.notifications_push import (
-    async_send_pushbullet_notification,
 )
 
 
@@ -64,7 +61,7 @@ class TestEmailNotification:
             "smtp_username": "sender@example.com",
             "recipient_email": "recipient@example.com",
             "smtp_password": "password123",
-            # No smtp_host or smtp_port - should use defaults
+            # No smtp_host or smtp_port - should use defaults (empty host, 587)
         }
 
         with patch("smtplib.SMTP") as mock_smtp:
@@ -92,7 +89,7 @@ class TestEmailNotification:
 
     @pytest.mark.asyncio
     async def test_missing_required_fields_raises_error(self, mock_hass):
-        """Test that missing required fields raise error."""
+        """Negative: missing required fields -> error; SMTP must NOT be called."""
         task_list = ["Task 1"]
         config_entry = Mock()
         config_entry.options = {
@@ -100,11 +97,14 @@ class TestEmailNotification:
             # Missing recipient_email and smtp_password
         }
 
-        with pytest.raises(
-            GoogleTaskNotificationError,
-            match="Missing required email configuration fields",
-        ):
-            await async_send_email_notification(mock_hass, config_entry, task_list)
+        with patch("smtplib.SMTP") as smtp_mock:
+            with pytest.raises(
+                GoogleTaskNotificationError,
+                match="Missing required email configuration fields",
+            ):
+                await async_send_email_notification(mock_hass, config_entry, task_list)
+            # Negative expectation: no SMTP connection attempted
+            smtp_mock.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_invalid_port_raises_error(self, mock_hass):
@@ -224,9 +224,8 @@ class TestEmailNotification:
                 "Error closing connection"
             )
 
-            # Should not raise exception despite quit() error
+            # Should not raise despite quit() error
             await async_send_email_notification(mock_hass, mock_config_entry, task_list)
-
             mock_server.quit.assert_called_once()
 
     @pytest.mark.asyncio
@@ -245,108 +244,10 @@ class TestEmailNotification:
             assert call_args[0] == "sender@example.com"
             assert call_args[1] == "recipient@example.com"
 
-            # Check email content contains tasks
+            # Check email content contains tasks and subject
             email_content = call_args[2]
             assert "You are pending with 3 task(s)" in email_content
             assert "- Buy groceries" in email_content
             assert "- Walk the dog" in email_content
             assert "- Finish project" in email_content
-            assert "Subject: Daily reminder" in email_content
-
-
-class TestPushNotification:
-    """Test push notification functionality."""
-
-    @pytest.fixture
-    def mock_hass(self):
-        """Create a mock Home Assistant instance."""
-        return Mock()
-
-    @pytest.fixture
-    def mock_config_entry(self):
-        """Create a mock config entry with push options."""
-        config_entry = Mock()
-        config_entry.options = {
-            "access_token": "test_token_123",
-            "api_endpoint": "https://api.pushbullet.com/v2/pushes",
-        }
-        return config_entry
-
-    @pytest.mark.asyncio
-    async def test_send_pushbullet_notification_success(
-        self, mock_hass, mock_config_entry
-    ):
-        """Test successful Pushbullet notification sending."""
-        task_list = ["Task 1", "Task 2"]
-
-        with patch(
-            "homeassistant.components.google_tasks.notifications_push.ClientSession"
-        ) as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 200
-
-            mock_session_instance = AsyncMock()
-            mock_session.return_value = mock_session_instance
-            mock_session_instance.__aenter__.return_value.post.return_value.__aenter__.return_value = mock_response
-
-            await async_send_pushbullet_notification(
-                mock_hass, mock_config_entry, task_list
-            )
-
-            # Verify the API call was made
-            mock_session_instance.__aenter__.return_value.post.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_pushbullet_missing_access_token(self, mock_hass):
-        """Test Pushbullet notification with missing access token."""
-        task_list = ["Task 1"]
-        config_entry = Mock()
-        config_entry.options = {}
-
-        with patch(
-            "homeassistant.components.google_tasks.notifications_push.ClientSession"
-        ) as mock_session:
-            await async_send_pushbullet_notification(mock_hass, config_entry, task_list)
-
-            # Should return early without making API call
-            mock_session.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_pushbullet_api_error(self, mock_hass, mock_config_entry):
-        """Test Pushbullet API error handling."""
-        task_list = ["Task 1"]
-
-        with patch(
-            "homeassistant.components.google_tasks.notifications_push.ClientSession"
-        ) as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 400
-            mock_response.text.return_value = "Bad Request"
-
-            mock_session_instance = AsyncMock()
-            mock_session.return_value = mock_session_instance
-            mock_session_instance.__aenter__.return_value.post.return_value.__aenter__.return_value = mock_response
-
-            # Should not raise exception, just log error
-            await async_send_pushbullet_notification(
-                mock_hass, mock_config_entry, task_list
-            )
-
-    @pytest.mark.asyncio
-    async def test_pushbullet_network_error(self, mock_hass, mock_config_entry):
-        """Test Pushbullet network error handling."""
-        task_list = ["Task 1"]
-
-        with patch(
-            "homeassistant.components.google_tasks.notifications_push.ClientSession"
-        ) as mock_session:
-            mock_session_instance = AsyncMock()
-            mock_session.return_value = mock_session_instance
-            mock_session_instance.__aenter__.return_value.post.side_effect = Exception(
-                "Network error"
-            )
-
-            # Should not raise exception, just log error
-            await async_send_pushbullet_notification(
-                mock_hass, mock_config_entry, task_list
-            )
+            assert "Subject: Home Assistant - Daily Task Reminder" in email_content
