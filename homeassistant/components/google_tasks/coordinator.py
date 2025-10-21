@@ -10,8 +10,8 @@ from dateutil.parser import isoparse
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.event import async_track_point_in_time
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
 from .const import DOMAIN
@@ -157,4 +157,4 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         except Exception:
             _LOGGER.exception("An exception occured while sending notification")
 
-        #await self.schedule_daily_notification()   
+        #await self.schedule_daily_notification()

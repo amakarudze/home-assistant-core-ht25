@@ -1,7 +1,8 @@
 """Custom Pushbullet notification for Google Tasks."""
 
-from aiohttp import ClientSession
 import logging
+
+from aiohttp import ClientSession
 
 from .const import ACCESS_TOKEN
 
