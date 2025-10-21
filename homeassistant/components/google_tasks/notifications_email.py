@@ -31,7 +31,6 @@ async def async_send_email_notification(
         )
 
     smtp_host = config_entry.options.get("smtp_host", "")
-    print("SMTP Host is %s", smtp_host)
     try:
         smtp_port = int(config_entry.options.get("smtp_port", 587))
     except (ValueError, TypeError) as err:
@@ -42,7 +41,7 @@ async def async_send_email_notification(
     msg = MIMEMultipart()
     msg["From"] = config_entry.options.get("smtp_username")
     msg["To"] = config_entry.options.get("recipient_email")
-    msg["Subject"] = "Daily reminder"
+    msg["Subject"] = "Home Assistant - Daily Task Reminder"
 
     task_count = len(task_list)
     body = (

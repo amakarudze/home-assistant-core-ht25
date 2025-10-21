@@ -9,8 +9,8 @@ from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.event import async_track_point_in_time
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
 from .notifications_email import send_email_notification
@@ -52,7 +52,6 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         notify_enabled = self.config_entry.options.get("notification_enabled", False)
         self._unsub_callback = None
         self._notification_type = self.config_entry.options.get("notification_type")
-        print("Notification type in coordinator is %s", self._notification_type)
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
         time_str = self.config_entry.options.get("notification_time")
@@ -78,7 +77,6 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 for coord in entry_data["coordinators"]:
                     if hasattr(coord, "data") and coord.data:
                         all_tasks.extend(coord.data)
-                        print("all tasks are %s", all_tasks)
 
         today = date.today()
         due_today: list[str] = []
@@ -99,26 +97,19 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 continue
             if due_date == today and task.get("status") != "completed":
                 due_today.append(task.get("title", ""))
-        print("Due today tasks are: %s", due_today)
 
         return due_today
 
     async def schedule_daily_notification(self):
-        """Schedules daily execution of schedule_daily_notification()."""
-        print(
-            "In schedule_daily_notification and notify enabled flag is %s",
-            self._notify_enabled,
-        )
+        """Schedules daily notification if enabled in config entry options."""
         if not self._notify_enabled:
             return
         await self._schedule_daily_notification()
 
     async def _schedule_daily_notification(self):
-        """Private function that schedules daily execution of _schedule_daily_notification()."""
+        """Private function that schedules the daily notification callback."""
         now = datetime.datetime.now()
         target = datetime.datetime.combine(now.date(), self._notify_time)
-        print("In _schedule_daily_notification and now time is %s", now)
-        print("In _schedule_daily_notification and target time is %s", target)
 
         if target <= now:
             target += timedelta(days=1)
@@ -127,24 +118,18 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             self._unsub_callback()
             self._unsub_callback = None
 
-        #self._unsub_callback = async_track_point_in_time(self.hass, self._test_notification_callback, target)
-        print("In _schedule_daily_notification and scheduler was started and next target time is %s", target)
-        await self._notification_callback(target)
+        self._unsub_callback = async_track_point_in_time(self.hass, self._notification_callback, target)
 
     async def _notification_callback(self, now):
         """Fetch daily tasks and sends notifcation and reschedules scheduler."""
         try:
-            print("Notification Scheduler got triggered!! Attempting to send daily notification")
+            _LOGGER.info("Notification Scheduler got triggered!! Attempting to send daily notification")
             task_list = self.get_daily_todo_tasks()
-            print("In _notification_callback and task list is %s", task_list)
-            print("Notification type is %s", self._notification_type)
             if self._notification_type == "email":
                 await async_send_email_notification(
                     self.hass, self.config_entry, task_list
                 )
-                print("I am in email block")
             if self._notification_type == "push":
-                print("I am in push block and notification type is %s", self._notification_type )
                 await async_send_pushbullet_notification(
                     self.hass, self.config_entry, task_list
                 )
@@ -152,4 +137,4 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         except Exception:
             _LOGGER.exception("An exception occured while sending notification")
 
-        #await self.schedule_daily_notification()   
+        await self.schedule_daily_notification()

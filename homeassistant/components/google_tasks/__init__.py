@@ -30,7 +30,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
             hass, entry
         )
     )
-    print("async_setup_entry() CALLED!")
     session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
     auth = api.AsyncConfigEntryAuth(hass, session)
     try:
@@ -68,22 +67,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleTasksConfigEntry) 
     )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
     "coordinators": coordinators,
-    "task_lists": task_lists,  # <-- this line adds the list to shared data
+    "task_lists": task_lists,
     }
-    # call coordinator to schedule daily notification
     for coordinator in coordinators:
         await coordinator.schedule_daily_notification()
-    
-    
     entry.runtime_data = coordinators
-    # notification_enabled = entry.options.get(NOTIFICATION_ENABLED, False)
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_update_listener))
 
-
     return True
-
 
 async def async_unload_entry(
     hass: HomeAssistant, entry: GoogleTasksConfigEntry
@@ -93,5 +85,4 @@ async def async_unload_entry(
 
 async def _update_listener(hass: HomeAssistant, entry: GoogleTasksConfigEntry):
     """Handle options update — reload the integration."""
-    print("Options updated — reloading integration...")
     await hass.config_entries.async_reload(entry.entry_id)
