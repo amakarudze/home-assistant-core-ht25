@@ -16,7 +16,7 @@ async def async_send_pushbullet_notification(hass, config_entry, task_list):
     title = "Home Assistant - Daily Task Summary"
     message = "Today's Google Tasks:\n" + "\n".join(f"- {t}" for t in task_list)
     if not access_token:
-        _LOGGER.warning("Pushbullet API key not set; skipping notification.")
+        _LOGGER.warning("Pushbullet API key not set; skipping notification")
         return
 
     async with ClientSession() as session:
@@ -36,6 +36,6 @@ async def async_send_pushbullet_notification(hass, config_entry, task_list):
                         await resp.text(),
                     )
                 else:
-                    _LOGGER.info("Pushbullet notification sent successfully.")
-        except Exception as err:
-            _LOGGER.error("Error sending Pushbullet notification: %s", err)
+                    _LOGGER.info("Pushbullet notification sent successfully")
+        except Exception:
+            _LOGGER.exception("Error sending Pushbullet notification")

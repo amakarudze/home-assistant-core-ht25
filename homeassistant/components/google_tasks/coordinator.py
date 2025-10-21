@@ -74,7 +74,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         integration_data = self.hass.data.get(DOMAIN, {})
         all_tasks = []
 
-        for entry_id, entry_data in integration_data.items():
+        for _entry_id, entry_data in integration_data.items():  # noqa: PERF102
             if isinstance(entry_data, dict) and "coordinators" in entry_data:
                 for coord in entry_data["coordinators"]:
                     if hasattr(coord, "data") and coord.data:
@@ -89,12 +89,11 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 continue
             try:
                 due_date = isoparse(due_str).date()
-            except Exception as err:
-                _LOGGER.warning(
-                    "Failed to parse due date '%s' for task '%s': %s",
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to parse due date '%s' for task '%s'",
                     due_str,
                     task.get("title"),
-                    err,
                 )
                 continue
             if due_date == today and task.get("status") != "completed":
@@ -116,16 +115,20 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         if target <= now:
             target += timedelta(days=1)
         if self._unsub_callback:
-            _LOGGER.debug("Cancelling previous scheduled callback.")
+            _LOGGER.debug("Cancelling previous scheduled callback")
             self._unsub_callback()
             self._unsub_callback = None
 
-        self._unsub_callback = async_track_point_in_time(self.hass, self._notification_callback, target)
+        self._unsub_callback = async_track_point_in_time(
+            self.hass, self._notification_callback, target
+        )
 
     async def _notification_callback(self, now):
-        """Fetch daily tasks and sends notifcation and reschedules scheduler."""
+        """Fetch daily tasks and sends notification and reschedules scheduler."""
         try:
-            _LOGGER.info("Notification Scheduler got triggered!! Attempting to send daily notification")
+            _LOGGER.info(
+                "Notification Scheduler got triggered!! Attempting to send daily notification"
+            )
             task_list = self.get_daily_todo_tasks()
             if self._notification_type == "email":
                 await async_send_email_notification(
@@ -137,6 +140,6 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 )
 
         except Exception:
-            _LOGGER.exception("An exception occured while sending notification")
+            _LOGGER.exception("An exception occurred while sending notification")
 
         await self.schedule_daily_notification()
