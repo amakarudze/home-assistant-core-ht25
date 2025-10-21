@@ -1,7 +1,8 @@
 """Custom Pushbullet notification for Google Tasks."""
 
-from aiohttp import ClientSession
 import logging
+
+from aiohttp import ClientSession
 
 from .const import ACCESS_TOKEN
 
@@ -12,12 +13,10 @@ async def async_send_pushbullet_notification(hass, config_entry, task_list):
     """Send a Pushbullet notification."""
     access_token = config_entry.options.get(ACCESS_TOKEN)
     api_endpoint = config_entry.options.get("api_endpoint")
-    print("Pushbullet Access Token is %s", access_token)
-    print("Pushbullet API Endpoint is %s", api_endpoint)
-    title = "Google Tasks - Daily Summary"
+    title = "Home Assistant - Daily Task Summary"
     message = "Today's Google Tasks:\n" + "\n".join(f"- {t}" for t in task_list)
     if not access_token:
-        _LOGGER.warning("Pushbullet API key not set; skipping notification.")
+        _LOGGER.warning("Pushbullet API key not set; skipping notification")
         return
 
     async with ClientSession() as session:
@@ -37,6 +36,6 @@ async def async_send_pushbullet_notification(hass, config_entry, task_list):
                         await resp.text(),
                     )
                 else:
-                    _LOGGER.info("Pushbullet notification sent successfully.")
-        except Exception as err:
-            _LOGGER.error("Error sending Pushbullet notification: %s", err)
+                    _LOGGER.info("Pushbullet notification sent successfully")
+        except Exception:
+            _LOGGER.exception("Error sending Pushbullet notification")

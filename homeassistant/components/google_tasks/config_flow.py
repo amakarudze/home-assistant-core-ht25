@@ -147,13 +147,14 @@ class OptionsFlowHandler(OptionsFlow):
             if notification_type == "push":
                 return await self.async_step_push()
 
+        current_type = self.config_entry.options.get("notification_type", "email")
         options_schema = vol.Schema(
             {
                 vol.Optional(
                     NOTIFICATION_ENABLED,
                     default=self.config_entry.options.get(NOTIFICATION_ENABLED, False),
                 ): bool,
-                vol.Required(NOTIFICATION_TYPE): vol.In(
+                vol.Required(NOTIFICATION_TYPE, default=current_type): vol.In(
                     [NOTIFICATION_EMAIL, NOTIFICATION_PUSH]
                 ),
                 vol.Optional(

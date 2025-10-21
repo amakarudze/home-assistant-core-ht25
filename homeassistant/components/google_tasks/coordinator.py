@@ -10,14 +10,13 @@ from dateutil.parser import isoparse
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.event import async_track_point_in_time
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
 from .const import DOMAIN
 from .notifications_email import async_send_email_notification
 from .notifications_push import async_send_pushbullet_notification
-
 
 __all__ = ["DOMAIN"]
 _LOGGER = logging.getLogger(__name__)
@@ -53,8 +52,8 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
         notify_enabled = self.config_entry.options.get("notification_enabled", False)
+        self._unsub_callback = None
         self._notification_type = self.config_entry.options.get("notification_type")
-        print("Notification type in coordinator is %s", self._notification_type)
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
         time_str = self.config_entry.options.get("notification_time")
@@ -70,12 +69,12 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         async with asyncio.timeout(TIMEOUT):
             return await self.api.list_tasks(self.task_list_id)
 
-    def get_daily_todo_tasks(self, hass: HomeAssistant) -> list[str] | None:
+    def get_daily_todo_tasks(self) -> list[str] | None:
         """Return a list of Google Tasks due today (from all coordinators)."""
-        integration_data = hass.data.get(DOMAIN, {})
+        integration_data = self.hass.data.get(DOMAIN, {})
         all_tasks = []
 
-        for entry_id, entry_data in integration_data.items():
+        for _entry_id, entry_data in integration_data.items():  # noqa: PERF102
             if isinstance(entry_data, dict) and "coordinators" in entry_data:
                 for coord in entry_data["coordinators"]:
                     if hasattr(coord, "data") and coord.data:
@@ -90,12 +89,11 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 continue
             try:
                 due_date = isoparse(due_str).date()
-            except Exception as err:
-                _LOGGER.warning(
-                    "Failed to parse due date '%s' for task '%s': %s",
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to parse due date '%s' for task '%s'",
                     due_str,
                     task.get("title"),
-                    err,
                 )
                 continue
             if due_date == today and task.get("status") != "completed":
@@ -104,47 +102,44 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         return due_today
 
     async def schedule_daily_notification(self):
-        """Schedules daily execution of fetchTaskandSendNotif()."""
-        print(
-            "In schedule_daily_notification and notify enabled flag is %s",
-            self._notify_enabled,
-        )
+        """Schedules daily notification if enabled in config entry options."""
         if not self._notify_enabled:
             return
         await self._schedule_daily_notification()
 
     async def _schedule_daily_notification(self):
-        """Private function that schedules daily execution of fetchTaskandSendNotif()."""
+        """Private function that schedules the daily notification callback."""
         now = datetime.datetime.now()
         target = datetime.datetime.combine(now.date(), self._notify_time)
 
         if target <= now:
             target += timedelta(days=1)
+        if self._unsub_callback:
+            _LOGGER.debug("Cancelling previous scheduled callback")
+            self._unsub_callback()
+            self._unsub_callback = None
 
-        #async_track_point_in_time(self.hass, self._notification_callback, target)
-        print("In _schedule_daily_notification and target time is %s", target)
-        await self._notification_callback(target)
+        self._unsub_callback = async_track_point_in_time(
+            self.hass, self._notification_callback, target
+        )
 
     async def _notification_callback(self, now):
-        """Fetch daily tasks and reschedule."""
+        """Fetch daily tasks and sends notification and reschedules scheduler."""
         try:
-            task_list = self.get_daily_todo_tasks(self.hass)
-            print("In _notification_callback and task list is %s", task_list)
-            print("Notification type is %s", self._notification_type)   
+            _LOGGER.info(
+                "Notification Scheduler got triggered!! Attempting to send daily notification"
+            )
+            task_list = self.get_daily_todo_tasks()
             if self._notification_type == "email":
                 await async_send_email_notification(
                     self.hass, self.config_entry, task_list
                 )
-                _LOGGER.info("I am in email block")
             if self._notification_type == "push":
-                print("I am in push block and notification type is %s", self._notification_type )
                 await async_send_pushbullet_notification(
                     self.hass, self.config_entry, task_list
                 )
-                _LOGGER.info("I am in push block")
 
-            _LOGGER.info("My callback function ")
         except Exception:
-            _LOGGER.exception("My exception block")
+            _LOGGER.exception("An exception occurred while sending notification")
 
-        #await self.schedule_daily_notification()
+        await self.schedule_daily_notification()
