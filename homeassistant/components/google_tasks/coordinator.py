@@ -134,7 +134,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         await self._notification_callback(target)
 
     async def _notification_callback(self, now):
-        """Fetch daily tasks and reschedule."""
+        """Fetch daily tasks and sends notifcation and reschedules scheduler."""
         try:
             print("Notification Scheduler got triggered!! Attempting to send daily notification")
             task_list = self.get_daily_todo_tasks()
@@ -144,7 +144,7 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 await async_send_email_notification(
                     self.hass, self.config_entry, task_list
                 )
-                _LOGGER.info("I am in email block")
+                print("I am in email block")
             if self._notification_type == "push":
                 print(
                     "I am in push block and notification type is %s",
@@ -153,19 +153,8 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 await async_send_pushbullet_notification(
                     self.hass, self.config_entry, task_list
                 )
-                _LOGGER.info("I am in push block")
 
-            _LOGGER.info("My callback function ")
         except Exception:
             _LOGGER.exception("An exception occured while sending notification")
 
-        #await self.schedule_daily_notification()
-
-    async def _test_notification_callback(self, now):
-        """Test Fetch daily tasks and reschedule."""
-        try:
-             print("Scheduler got triggered!!")
-        except Exception:
-            _LOGGER.exception("My exception block")
-
-        await self.schedule_daily_notification()
+        #await self.schedule_daily_notification()   

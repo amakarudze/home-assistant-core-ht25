@@ -91,13 +91,6 @@ async def async_unload_entry(
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: GoogleTasksConfigEntry
-) -> bool:
-    """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-
 async def _update_listener(hass: HomeAssistant, entry: GoogleTasksConfigEntry):
     """Handle options update — reload the integration."""
     print("Options updated — reloading integration...")
