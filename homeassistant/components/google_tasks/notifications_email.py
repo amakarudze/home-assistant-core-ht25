@@ -12,8 +12,8 @@ _LOGGER = logging.getLogger(__name__)
 SMTP_TIMEOUT = 30
 
 
-async def async_send_email_notification(
-    hass, config_entry, task_list: list[str]
+def send_email_notification(
+    config_entry, task_list: list[str]
 ) -> None:
     """Send a daily reminder email with the given task list."""
 
