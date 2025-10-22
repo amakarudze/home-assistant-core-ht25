@@ -15,8 +15,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
 from .const import DOMAIN
-from .notifications_email import async_send_email_notification
-from .notifications_push import async_send_pushbullet_notification
+from .notifications_email import send_email_notification
+from .notifications_push import send_pushbullet_notification
 
 __all__ = ["DOMAIN"]
 _LOGGER = logging.getLogger(__name__)
@@ -140,12 +140,12 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             )
             task_list = self.get_daily_todo_tasks()
             if self._notification_type == "email":
-                await async_send_email_notification(
-                    self.hass, self.config_entry, task_list
+                send_email_notification(
+                    self.config_entry, task_list
                 )
             if self._notification_type == "push":
-                await async_send_pushbullet_notification(
-                    self.hass, self.config_entry, task_list
+                await send_pushbullet_notification(
+                    self.config_entry, task_list
                 )
 
         except Exception:
