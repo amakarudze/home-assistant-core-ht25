@@ -1,7 +1,7 @@
 """Tests for Google Tasks email notification functionality."""
 
 import smtplib
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -53,7 +53,7 @@ class TestEmailNotification:
             mock_server.quit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_send_email_notification_with_defaults(self, mock_hass):
+    async def test_send_email_notification_with_defaults(self):
         """Test email sending with default SMTP settings."""
         task_list = ["Task 1"]
         config_entry = Mock()
