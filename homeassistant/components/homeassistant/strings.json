@@ -66,8 +66,8 @@
       }
     },
     "config_entry_reauth": {
-      "title": "[%key:common::config_flow::title::reauth%]",
-      "description": "Reauthentication is needed"
+      "title": "Reauthentication required",
+      "description": "The {integration} integration needs to reauthenticate."
     },
     "config_entry_unique_id_collision": {
       "title": "Multiple {domain} config entries with same unique ID",
