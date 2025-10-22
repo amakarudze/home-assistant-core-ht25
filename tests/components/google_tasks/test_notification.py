@@ -7,7 +7,7 @@ import pytest
 
 from homeassistant.components.google_tasks.exceptions import GoogleTaskNotificationError
 from homeassistant.components.google_tasks.notifications_email import (
-    async_send_email_notification,
+    send_email_notification,
 )
 
 
@@ -33,7 +33,7 @@ class TestEmailNotification:
         return config_entry
 
     @pytest.mark.asyncio
-    async def test_send_email_notification_success(self, mock_hass, mock_config_entry):
+    async def test_send_email_notification_success(self,  mock_config_entry):
         """Test successful email sending."""
         task_list = ["Task 1", "Task 2", "Task 3"]
 
@@ -41,7 +41,7 @@ class TestEmailNotification:
             mock_server = Mock()
             mock_smtp.return_value = mock_server
 
-            await async_send_email_notification(mock_hass, mock_config_entry, task_list)
+            send_email_notification(mock_config_entry, task_list)
 
             # Verify SMTP calls
             mock_smtp.assert_called_once_with("smtp.gmail.com", 587, timeout=30)
@@ -68,27 +68,24 @@ class TestEmailNotification:
             mock_server = Mock()
             mock_smtp.return_value = mock_server
 
-            await async_send_email_notification(mock_hass, config_entry, task_list)
+            send_email_notification(config_entry, task_list)
 
             # Should use default port 587, empty host
             mock_smtp.assert_called_once_with("", 587, timeout=30)
 
     @pytest.mark.asyncio
-    async def test_empty_task_list_skips_email(self, mock_hass, mock_config_entry):
+    async def test_empty_task_list_skips_email(self,  mock_config_entry):
         """Test that empty task list skips email sending."""
         task_list = []
 
         with patch("smtplib.SMTP") as mock_smtp:
-            result = await async_send_email_notification(
-                mock_hass, mock_config_entry, task_list
-            )
+            send_email_notification(mock_config_entry, task_list)
 
             # Should return None and not create SMTP connection
-            assert result is None
             mock_smtp.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_missing_required_fields_raises_error(self, mock_hass):
+    async def test_missing_required_fields_raises_error(self):
         """Negative: missing required fields -> error; SMTP must NOT be called."""
         task_list = ["Task 1"]
         config_entry = Mock()
@@ -102,12 +99,12 @@ class TestEmailNotification:
                 GoogleTaskNotificationError,
                 match="Missing required email configuration fields",
             ):
-                await async_send_email_notification(mock_hass, config_entry, task_list)
+                send_email_notification( config_entry, task_list)
             # Negative expectation: no SMTP connection attempted
             smtp_mock.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_invalid_port_raises_error(self, mock_hass):
+    async def test_invalid_port_raises_error(self):
         """Test that invalid port raises error."""
         task_list = ["Task 1"]
         config_entry = Mock()
@@ -119,10 +116,10 @@ class TestEmailNotification:
         }
 
         with pytest.raises(GoogleTaskNotificationError, match="Invalid port number"):
-            await async_send_email_notification(mock_hass, config_entry, task_list)
+            send_email_notification( config_entry, task_list)
 
     @pytest.mark.asyncio
-    async def test_smtp_authentication_error(self, mock_hass, mock_config_entry):
+    async def test_smtp_authentication_error(self,  mock_config_entry):
         """Test SMTP authentication error handling."""
         task_list = ["Task 1"]
 
@@ -136,12 +133,12 @@ class TestEmailNotification:
             with pytest.raises(
                 GoogleTaskNotificationError, match="Authentication failed"
             ):
-                await async_send_email_notification(
-                    mock_hass, mock_config_entry, task_list
+                send_email_notification(
+                     mock_config_entry, task_list
                 )
 
     @pytest.mark.asyncio
-    async def test_smtp_recipients_refused_error(self, mock_hass, mock_config_entry):
+    async def test_smtp_recipients_refused_error(self,  mock_config_entry):
         """Test SMTP recipients refused error handling."""
         task_list = ["Task 1"]
 
@@ -153,12 +150,12 @@ class TestEmailNotification:
             with pytest.raises(
                 GoogleTaskNotificationError, match="Recipient email address refused"
             ):
-                await async_send_email_notification(
-                    mock_hass, mock_config_entry, task_list
+                send_email_notification(
+                     mock_config_entry, task_list
                 )
 
     @pytest.mark.asyncio
-    async def test_smtp_sender_refused_error(self, mock_hass, mock_config_entry):
+    async def test_smtp_sender_refused_error(self,  mock_config_entry):
         """Test SMTP sender refused error handling."""
         task_list = ["Task 1"]
 
@@ -172,12 +169,12 @@ class TestEmailNotification:
             with pytest.raises(
                 GoogleTaskNotificationError, match="Sender email address refused"
             ):
-                await async_send_email_notification(
-                    mock_hass, mock_config_entry, task_list
+                send_email_notification(
+                     mock_config_entry, task_list
                 )
 
     @pytest.mark.asyncio
-    async def test_smtp_timeout_error(self, mock_hass, mock_config_entry):
+    async def test_smtp_timeout_error(self,  mock_config_entry):
         """Test SMTP timeout error handling."""
         task_list = ["Task 1"]
 
@@ -187,12 +184,12 @@ class TestEmailNotification:
             with pytest.raises(
                 GoogleTaskNotificationError, match="SMTP connection timed out"
             ):
-                await async_send_email_notification(
-                    mock_hass, mock_config_entry, task_list
+                send_email_notification(
+                     mock_config_entry, task_list
                 )
 
     @pytest.mark.asyncio
-    async def test_smtp_general_error(self, mock_hass, mock_config_entry):
+    async def test_smtp_general_error(self,  mock_config_entry):
         """Test general SMTP error handling."""
         task_list = ["Task 1"]
 
@@ -206,13 +203,13 @@ class TestEmailNotification:
             with pytest.raises(
                 GoogleTaskNotificationError, match="Failed to send email notification"
             ):
-                await async_send_email_notification(
-                    mock_hass, mock_config_entry, task_list
+                send_email_notification(
+                     mock_config_entry, task_list
                 )
 
     @pytest.mark.asyncio
     async def test_server_quit_error_handled_gracefully(
-        self, mock_hass, mock_config_entry
+        self,  mock_config_entry
     ):
         """Test that server.quit() errors are handled gracefully."""
         task_list = ["Task 1"]
@@ -225,11 +222,11 @@ class TestEmailNotification:
             )
 
             # Should not raise despite quit() error
-            await async_send_email_notification(mock_hass, mock_config_entry, task_list)
+            send_email_notification( mock_config_entry, task_list)
             mock_server.quit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_email_content_format(self, mock_hass, mock_config_entry):
+    async def test_email_content_format(self,  mock_config_entry):
         """Test that email content is formatted correctly."""
         task_list = ["Buy groceries", "Walk the dog", "Finish project"]
 
@@ -237,7 +234,7 @@ class TestEmailNotification:
             mock_server = Mock()
             mock_smtp.return_value = mock_server
 
-            await async_send_email_notification(mock_hass, mock_config_entry, task_list)
+            send_email_notification( mock_config_entry, task_list)
 
             # Check that sendmail was called with correct parameters
             call_args = mock_server.sendmail.call_args[0]
