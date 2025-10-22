@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from homeassistant.components.google_tasks.notifications_push import (
-    async_send_pushbullet_notification,
+    send_pushbullet_notification,
 )
 
 
@@ -29,7 +29,7 @@ class TestPushNotification:
 
     @pytest.mark.asyncio
     async def test_send_pushbullet_notification_success(
-        self, mock_hass, mock_config_entry
+        self, mock_config_entry
     ):
         """Test successful Pushbullet notification sending."""
         task_list = ["Task 1", "Task 2"]
@@ -45,15 +45,15 @@ class TestPushNotification:
             mock_session.return_value = mock_session_instance
             mock_session_instance.__aenter__.return_value.post.return_value.__aenter__.return_value = mock_response
 
-            await async_send_pushbullet_notification(
-                mock_hass, mock_config_entry, task_list
+            await send_pushbullet_notification(
+                 mock_config_entry, task_list
             )
 
             # Verify the API call was made
             mock_session_instance.__aenter__.return_value.post.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_pushbullet_missing_access_token(self, mock_hass):
+    async def test_pushbullet_missing_access_token(self):
         """Test Pushbullet notification with missing access token."""
         task_list = ["Task 1"]
         config_entry = MagicMock()
@@ -62,13 +62,13 @@ class TestPushNotification:
         with patch(
             "homeassistant.components.google_tasks.notifications_push.ClientSession"
         ) as mock_session:
-            await async_send_pushbullet_notification(mock_hass, config_entry, task_list)
+            await send_pushbullet_notification( config_entry, task_list)
 
             # Should return early without making API call
             mock_session.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_pushbullet_api_error(self, mock_hass, mock_config_entry):
+    async def test_pushbullet_api_error(self, mock_config_entry):
         """Test Pushbullet API error handling."""
         task_list = ["Task 1"]
 
@@ -84,12 +84,12 @@ class TestPushNotification:
             mock_session_instance.__aenter__.return_value.post.return_value.__aenter__.return_value = mock_response
 
             # Should not raise exception, just log error
-            await async_send_pushbullet_notification(
-                mock_hass, mock_config_entry, task_list
+            await send_pushbullet_notification(
+                 mock_config_entry, task_list
             )
 
     @pytest.mark.asyncio
-    async def test_pushbullet_network_error(self, mock_hass, mock_config_entry):
+    async def test_pushbullet_network_error(self, mock_config_entry):
         """Test Pushbullet network error handling."""
         task_list = ["Task 1"]
 
@@ -103,6 +103,6 @@ class TestPushNotification:
             )
 
             # Should not raise exception, just log error
-            await async_send_pushbullet_notification(
-                mock_hass, mock_config_entry, task_list
+            await send_pushbullet_notification(
+                 mock_config_entry, task_list
             )
