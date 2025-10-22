@@ -9,7 +9,7 @@ from .const import ACCESS_TOKEN
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_send_pushbullet_notification(hass, config_entry, task_list):
+async def send_pushbullet_notification(config_entry, task_list):
     """Send a Pushbullet notification."""
     access_token = config_entry.options.get(ACCESS_TOKEN)
     api_endpoint = config_entry.options.get("api_endpoint")
