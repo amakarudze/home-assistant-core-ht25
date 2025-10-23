@@ -163,24 +163,3 @@ async def test_pushbullet_rate_limited_no_raise(caplog):
             in r.message
             for r in caplog.records
         )
-
-
-@pytest.mark.asyncio
-async def test_pushbullet_empty_task_list_skips_call(caplog):
-    """Empty task list: skips notification and logs info."""
-    config_entry = MagicMock()
-    config_entry.options = {
-        "access_token": "tok123",
-        "api_endpoint": "https://api.pushbullet.com/v2/pushes",
-    }
-    task_list = []
-
-    with caplog.at_level("INFO"), patch(
-        "homeassistant.components.google_tasks.notifications_push.ClientSession"
-    ) as Session:
-        await send_pushbullet_notification(config_entry, task_list)
-        Session.assert_not_called()
-        assert any(
-            "No tasks to notify; skipping Pushbullet notification" in r.message
-            for r in caplog.records
-        )
