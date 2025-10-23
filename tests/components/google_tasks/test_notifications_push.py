@@ -1,11 +1,6 @@
-<<<<<<< HEAD
-"""Tests for Pushbullet notifications in the Google Tasks integration."""
-
-import logging
-=======
 """Tests for Google Tasks Pushbullet notification functionality."""
 
->>>>>>> 36d2a20e4625b8dcb44c5bdbdf76ff2f9e0b382d
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,9 +10,12 @@ from homeassistant.components.google_tasks.notifications_push import (
 )
 
 
-<<<<<<< HEAD
-def make_session_with_resp(resp: MagicMock) -> MagicMock:
-    """Return a session whose POST returns an async context manager."""
+def make_session_with_resp(resp):
+    """Build a mocked aiohttp ClientSession.
+
+    The returned `session` has `session.post(...)` that yields an async context
+    manager which returns `resp` on `__aenter__`.
+    """
     session = MagicMock()
     post_cm = MagicMock()
     post_cm.__aenter__ = AsyncMock(return_value=resp)
@@ -26,22 +24,11 @@ def make_session_with_resp(resp: MagicMock) -> MagicMock:
     return session
 
 
-=======
->>>>>>> 36d2a20e4625b8dcb44c5bdbdf76ff2f9e0b382d
 class TestPushNotification:
     """Test push notification functionality."""
 
     @pytest.fixture
-<<<<<<< HEAD
-    def mock_config_entry(self) -> MagicMock:
-=======
-    def mock_hass(self):
-        """Create a mock Home Assistant instance."""
-        return MagicMock()
-
-    @pytest.fixture
     def mock_config_entry(self):
->>>>>>> 36d2a20e4625b8dcb44c5bdbdf76ff2f9e0b382d
         """Create a mock config entry with push options."""
         config_entry = MagicMock()
         config_entry.options = {
@@ -51,19 +38,12 @@ class TestPushNotification:
         return config_entry
 
     @pytest.mark.asyncio
-<<<<<<< HEAD
-    async def test_send_pushbullet_notification_success(
-        self, mock_config_entry: MagicMock
-    ) -> None:
-=======
     async def test_send_pushbullet_notification_success(self, mock_config_entry):
->>>>>>> 36d2a20e4625b8dcb44c5bdbdf76ff2f9e0b382d
-        """Test successful Pushbullet notification sending."""
+        """Successful Pushbullet notification sends exactly one POST."""
         task_list = ["Task 1", "Task 2"]
 
         with patch(
             "homeassistant.components.google_tasks.notifications_push.ClientSession"
-<<<<<<< HEAD
         ) as Session:
             resp = MagicMock()
             resp.status = 200
@@ -75,8 +55,8 @@ class TestPushNotification:
             assert session.post.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_pushbullet_missing_access_token(self) -> None:
-        """Test Pushbullet notification with missing access token."""
+    async def test_pushbullet_missing_access_token(self):
+        """Missing access token short-circuits without creating a session."""
         task_list = ["Task 1"]
         config_entry = MagicMock()
         config_entry.options = {}  # no access_token
@@ -88,10 +68,8 @@ class TestPushNotification:
             Session.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_pushbullet_api_error(
-        self, mock_config_entry: MagicMock, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Test Pushbullet API error handling."""
+    async def test_pushbullet_api_error(self, mock_config_entry, caplog):
+        """HTTP 400 logs an error but does not raise."""
         task_list = ["Task 1"]
 
         with caplog.at_level("ERROR"), patch(
@@ -113,10 +91,8 @@ class TestPushNotification:
             )
 
     @pytest.mark.asyncio
-    async def test_pushbullet_network_error(
-        self, mock_config_entry: MagicMock, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Test Pushbullet network error handling."""
+    async def test_pushbullet_network_error(self, mock_config_entry, caplog):
+        """Network exception inside POST context logs an error."""
         task_list = ["Task 1"]
 
         with caplog.at_level("ERROR"), patch(
@@ -136,64 +112,71 @@ class TestPushNotification:
                 and "Error sending Pushbullet notification" in r.message
                 for r in caplog.records
             )
-=======
-        ) as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 200
 
-            mock_session_instance = AsyncMock()
-            mock_session.return_value = mock_session_instance
-            mock_session_instance.__aenter__.return_value.post.return_value.__aenter__.return_value = mock_response
 
-            await send_pushbullet_notification(mock_config_entry, task_list)
+@pytest.mark.asyncio
+async def test_pushbullet_endpoint_headers_and_payload_are_correct():
+    """Endpoint URL, headers, and payload formatting are correct."""
+    config_entry = MagicMock()
+    config_entry.options = {
+        "access_token": "tok123",
+        "api_endpoint": "https://api.pushbullet.com/v2/pushes",
+    }
+    task_list = ["One", "Two", "Three"]
 
-            mock_session_instance.__aenter__.return_value.post.assert_called_once()
+    with patch(
+        "homeassistant.components.google_tasks.notifications_push.ClientSession"
+    ) as Session:
+        resp = MagicMock()
+        resp.status = 200
 
-    @pytest.mark.asyncio
-    async def test_pushbullet_missing_access_token(self):
-        """Test Pushbullet notification with missing access token."""
-        task_list = ["Task 1"]
-        config_entry = MagicMock()
-        config_entry.options = {}
+        session = make_session_with_resp(resp)
+        Session.return_value.__aenter__.return_value = session
 
-        with patch(
-            "homeassistant.components.google_tasks.notifications_push.ClientSession"
-        ) as mock_session:
-            await send_pushbullet_notification(config_entry, task_list)
+        await send_pushbullet_notification(config_entry, task_list)
 
-            mock_session.assert_not_called()
+        assert session.post.call_count == 1
+        (url,), kwargs = session.post.call_args
+        assert url == config_entry.options["api_endpoint"]
 
-    @pytest.mark.asyncio
-    async def test_pushbullet_api_error(self, mock_config_entry):
-        """Test Pushbullet API error handling."""
-        task_list = ["Task 1"]
+        headers = kwargs.get("headers") or {}
+        assert headers.get("Access-Token") == "tok123"
+        assert headers.get("Content-Type") == "application/json"
 
-        with patch(
-            "homeassistant.components.google_tasks.notifications_push.ClientSession"
-        ) as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 400
-            mock_response.text.return_value = "Bad Request"
+        payload = kwargs.get("json") or {}
+        assert payload.get("type") == "note"
+        assert payload.get("title")
 
-            mock_session_instance = AsyncMock()
-            mock_session.return_value = mock_session_instance
-            mock_session_instance.__aenter__.return_value.post.return_value.__aenter__.return_value = mock_response
+        body = payload.get("body", "")
+        for t in task_list:
+            assert f"- {t}" in body
 
-            await send_pushbullet_notification(mock_config_entry, task_list)
 
-    @pytest.mark.asyncio
-    async def test_pushbullet_network_error(self, mock_config_entry):
-        """Test Pushbullet network error handling."""
-        task_list = ["Task 1"]
+@pytest.mark.asyncio
+async def test_pushbullet_rate_limited_no_raise(caplog):
+    """HTTP 429 is logged with body; no exception is raised."""
+    config_entry = MagicMock()
+    config_entry.options = {
+        "access_token": "tok123",
+        "api_endpoint": "https://api.pushbullet.com/v2/pushes",
+    }
+    task_list = ["Task 1"]
 
-        with patch(
-            "homeassistant.components.google_tasks.notifications_push.ClientSession"
-        ) as mock_session:
-            mock_session_instance = AsyncMock()
-            mock_session.return_value = mock_session_instance
-            mock_session_instance.__aenter__.return_value.post.side_effect = Exception(
-                "Network error"
-            )
+    with caplog.at_level("ERROR"), patch(
+        "homeassistant.components.google_tasks.notifications_push.ClientSession"
+    ) as Session:
+        resp = MagicMock()
+        resp.status = 429
+        resp.text = AsyncMock(return_value="Too Many Requests")
 
-            await send_pushbullet_notification(mock_config_entry, task_list)
->>>>>>> 36d2a20e4625b8dcb44c5bdbdf76ff2f9e0b382d
+        session = make_session_with_resp(resp)
+        Session.return_value.__aenter__.return_value = session
+
+        await send_pushbullet_notification(config_entry, task_list)
+
+        assert any(
+            r.levelno == logging.ERROR
+            and "Failed to send Pushbullet notification [429]: Too Many Requests"
+            in r.message
+            for r in caplog.records
+        )
