@@ -227,4 +227,4 @@ class TestEmailNotification:
             assert "- Buy groceries" in email_content
             assert "- Walk the dog" in email_content
             assert "- Finish project" in email_content
-            assert "Subject: Daily reminder" in email_content
+            assert "Subject: Home Assistant - Daily Task Reminder" in email_content
