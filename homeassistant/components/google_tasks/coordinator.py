@@ -2,7 +2,7 @@
 
 import asyncio
 import datetime
-from datetime import time as dt_time, date, timedelta
+from datetime import date, time as dt_time, timedelta
 import logging
 from typing import Any, Final
 
@@ -10,8 +10,6 @@ from dateutil.parser import isoparse
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.event import async_track_point_in_time
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -142,13 +140,9 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             )
             task_list = self.get_daily_todo_tasks()
             if self._notification_type == "email":
-                send_email_notification(
-                    self.config_entry, task_list
-                )
+                send_email_notification(self.config_entry, task_list)
             if self._notification_type == "push":
-                await send_pushbullet_notification(
-                    self.config_entry, task_list
-                )
+                await send_pushbullet_notification(self.config_entry, task_list)
 
         except Exception:
             _LOGGER.exception("An exception occurred while sending notification")
