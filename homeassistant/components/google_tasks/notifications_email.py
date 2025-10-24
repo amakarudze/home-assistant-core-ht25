@@ -12,9 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 SMTP_TIMEOUT = 30
 
 
-async def async_send_email_notification(
-    hass, config_entry, task_list: list[str]
-) -> None:
+def send_email_notification(config_entry, task_list: list[str]) -> None:
     """Send a daily reminder email with the given task list."""
 
     if not task_list:
@@ -56,7 +54,10 @@ async def async_send_email_notification(
     try:
         server = smtplib.SMTP(smtp_host, smtp_port, timeout=SMTP_TIMEOUT)
         server.starttls()
-        server.login(config_entry.options.get("smtp_username"), config_entry.options.get("smtp_password"))
+        server.login(
+            config_entry.options.get("smtp_username"),
+            config_entry.options.get("smtp_password"),
+        )
         server.sendmail(
             config_entry.options.get("smtp_username"),
             config_entry.options.get("recipient_email"),
