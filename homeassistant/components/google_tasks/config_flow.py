@@ -134,13 +134,14 @@ class OptionsFlowHandler(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any]) -> ConfigFlowResult:
         """Setup config entries for notifications."""
+
         if user_input:
             notification_email = user_input[NOTIFICATION_EMAIL]
             notification_push = user_input[NOTIFICATION_PUSH]
             notification_enabled = user_input[NOTIFICATION_ENABLED]
+            self._options.update(user_input)
 
             if notification_enabled:
-                self._options.update(user_input)
                 self.context["notification_push"] = notification_push  # type: ignore[typeddict-unknown-key]
                 if notification_push and not notification_email:
                     return await self.async_step_push()
@@ -212,7 +213,7 @@ class OptionsFlowHandler(OptionsFlow):
         if user_input:
             self._options.update(user_input)
             return self.async_create_entry(
-                title="Push Notifications", data=self._options
+                title="Configure Notifications", data=self._options
             )
 
         return self.async_show_form(
