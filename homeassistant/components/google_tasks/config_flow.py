@@ -177,7 +177,9 @@ class OptionsFlowHandler(OptionsFlow):
             if notification_push:
                 return await self.async_step_push()
 
-            return self.async_create_entry(title="Email Notifications", data=user_input)
+            return self.async_create_entry(
+                title="Email Notifications", data=self._options
+            )
 
         return self.async_show_form(
             step_id="email",
@@ -210,7 +212,7 @@ class OptionsFlowHandler(OptionsFlow):
         if user_input:
             self._options.update(user_input)
             return self.async_create_entry(
-                title="Configure Notifications", data=user_input
+                title="Push Notifications", data=self._options
             )
 
         return self.async_show_form(

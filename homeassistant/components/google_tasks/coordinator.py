@@ -1,5 +1,3 @@
-"""Coordinator for fetching data from Google Tasks API."""
-
 import asyncio
 import datetime
 from datetime import date, time as dt_time, timedelta
@@ -14,7 +12,7 @@ from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import AsyncConfigEntryAuth
-from .const import DOMAIN
+from .const import DOMAIN, NOTIFICATION_EMAIL, NOTIFICATION_ENABLED, NOTIFICATION_PUSH
 from .notifications_email import send_email_notification
 from .notifications_push import send_pushbullet_notification
 
@@ -22,39 +20,14 @@ __all__ = ["DOMAIN"]
 _LOGGER = logging.getLogger(__name__)
 
 UPDATE_INTERVAL: Final = datetime.timedelta(minutes=30)
-TIMEOUT = 10
-
-type GoogleTasksConfigEntry = ConfigEntry[list[TaskUpdateCoordinator]]
-
-
-class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
-    """Coordinator for fetching Google Tasks for a Task List form the API."""
-
-    config_entry: GoogleTasksConfigEntry
-
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        config_entry: GoogleTasksConfigEntry,
-        api: AsyncConfigEntryAuth,
-        task_list_id: str,
-        task_list_title: str,
-    ) -> None:
-        """Initialize TaskUpdateCoordinator."""
-        super().__init__(
-            hass,
-            _LOGGER,
-            config_entry=config_entry,
-            name=f"Google Tasks {task_list_id}",
-            update_interval=UPDATE_INTERVAL,
-        )
+@@ -43,8 +51,102 @@ def __init__(
         self.api = api
         self.task_list_id = task_list_id
         self.task_list_title = task_list_title
-        notify_enabled = self.config_entry.options.get("notification_enabled", False)
+        notify_enabled = self.config_entry.options.get(NOTIFICATION_ENABLED, False)
         self._unsub_callback = None
-        self._notification_email = self.config_entry.options.get("notification_email")
-        self._notification_push = self.config_entry.options.get("notification_push")
+        self._notification_email = self.config_entry.options.get(NOTIFICATION_EMAIL)
+        self._notification_push = self.config_entry.options.get(NOTIFICATION_PUSH)
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
         self.integration_data = hass.data.get(DOMAIN, {})
@@ -140,28 +113,11 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 "Notification Scheduler got triggered!! Attempting to send daily notification"
             )
             task_list = self.get_daily_todo_tasks()
-<<<<<<< HEAD
-            if self._notification_type == "email":
-                send_email_notification(self.config_entry, task_list)
-            if self._notification_type == "push":
-                await send_pushbullet_notification(self.config_entry, task_list)
-=======
-            if self._notification_email and self._notification_push:
-                await async_send_email_notification(
-                    self.hass, self.config_entry, task_list
-                )
-                await async_send_pushbullet_notification(
-                    self.hass, self.config_entry, task_list
-                )
+
             if self._notification_email:
-                await async_send_email_notification(
-                    self.hass, self.config_entry, task_list
-                )
+                send_email_notification(self.config_entry, task_list)
             if self._notification_push:
-                await async_send_pushbullet_notification(
-                    self.hass, self.config_entry, task_list
-                )
->>>>>>> b543b0e9a7c (Enable users to send both email and push)
+                await send_pushbullet_notification(self.config_entry, task_list)
 
         except Exception:
             _LOGGER.exception("An exception occurred while sending notification")
