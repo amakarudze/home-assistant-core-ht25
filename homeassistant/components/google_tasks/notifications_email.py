@@ -83,6 +83,10 @@ def send_email_notification(
         raise GoogleTaskNotificationError(
             f"SMTP connection timed out after {SMTP_TIMEOUT} seconds"
         ) from err
+    except TimeoutError as err:
+        raise GoogleTaskNotificationError(
+            f"SMTP connection timed out after {SMTP_TIMEOUT} seconds"
+        ) from err
     except (smtplib.SMTPException, OSError) as err:
         raise GoogleTaskNotificationError(
             f"Failed to send email notification: {err}"

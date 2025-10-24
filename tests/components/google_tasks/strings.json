@@ -1,0 +1,11 @@
+{
+  "title": "Google Tasks",
+  "config": {
+    "abort": {
+      "access_not_configured": "Access to the Google Tasks API is not configured.",
+      "unknown": "Unknown error.",
+      "reauth_successful": "Re-authentication successful.",
+      "wrong_account": "Please reauthenticate with the same Google account used originally."
+    }
+  }
+}
