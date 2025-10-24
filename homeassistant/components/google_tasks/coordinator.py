@@ -53,7 +53,8 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
         self.task_list_title = task_list_title
         notify_enabled = self.config_entry.options.get("notification_enabled", False)
         self._unsub_callback = None
-        self._notification_type = self.config_entry.options.get("notification_type")
+        self._notification_email = self.config_entry.options.get("notification_email")
+        self._notification_push = self.config_entry.options.get("notification_push")
         self._notify_enabled = notify_enabled
         self._notify_time = dt_time(8, 0)  # default
         time_str = self.config_entry.options.get("notification_time")
@@ -130,11 +131,18 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
                 "Notification Scheduler got triggered!! Attempting to send daily notification"
             )
             task_list = self.get_daily_todo_tasks()
-            if self._notification_type == "email":
+            if self._notification_email and self._notification_push:
                 await async_send_email_notification(
                     self.hass, self.config_entry, task_list
                 )
-            if self._notification_type == "push":
+                await async_send_pushbullet_notification(
+                    self.hass, self.config_entry, task_list
+                )
+            if self._notification_email:
+                await async_send_email_notification(
+                    self.hass, self.config_entry, task_list
+                )
+            if self._notification_push:
                 await async_send_pushbullet_notification(
                     self.hass, self.config_entry, task_list
                 )
