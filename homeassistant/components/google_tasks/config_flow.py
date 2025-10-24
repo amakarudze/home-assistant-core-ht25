@@ -28,7 +28,6 @@ from .const import (
     NOTIFICATION_ENABLED,
     NOTIFICATION_PUSH,
     NOTIFICATION_TIME,
-    NOTIFICATION_TYPE,
     OAUTH2_SCOPES,
     RECIPIENT_EMAIL,
     SMTP_HOST,
@@ -131,32 +130,36 @@ class OptionsFlowHandler(OptionsFlow):
     def __init__(self, config_entry) -> None:
         """Initialise config entries."""
         self._config_entry = config_entry
+        self._options = dict(config_entry.options)
 
     async def async_step_init(self, user_input: dict[str, Any]) -> ConfigFlowResult:
         """Setup config entries for notifications."""
         if user_input:
-            notification_type = user_input[NOTIFICATION_TYPE]
+            notification_email = user_input[NOTIFICATION_EMAIL]
+            notification_push = user_input[NOTIFICATION_PUSH]
             notification_enabled = user_input[NOTIFICATION_ENABLED]
-            notification_time = user_input[NOTIFICATION_TIME]
-            self.context["notification_type"] = notification_type  # type: ignore[typeddict-unknown-key]
-            self.context["notification_enabled"] = notification_enabled  # type: ignore[typeddict-unknown-key]
-            self.context["notification_time"] = notification_time  # type: ignore[typeddict-unknown-key]
 
-            if notification_type == "email":
+            if notification_enabled:
+                self._options.update(user_input)
+                self.context["notification_push"] = notification_push  # type: ignore[typeddict-unknown-key]
+                if notification_push and not notification_email:
+                    return await self.async_step_push()
                 return await self.async_step_email()
-            if notification_type == "push":
-                return await self.async_step_push()
 
-        current_type = self.config_entry.options.get("notification_type", "email")
         options_schema = vol.Schema(
             {
                 vol.Optional(
                     NOTIFICATION_ENABLED,
                     default=self.config_entry.options.get(NOTIFICATION_ENABLED, False),
                 ): bool,
-                vol.Required(NOTIFICATION_TYPE, default=current_type): vol.In(
-                    [NOTIFICATION_EMAIL, NOTIFICATION_PUSH]
-                ),
+                vol.Optional(
+                    NOTIFICATION_EMAIL,
+                    default=self.config_entry.options.get(NOTIFICATION_EMAIL, False),
+                ): bool,
+                vol.Optional(
+                    NOTIFICATION_PUSH,
+                    default=self.config_entry.options.get(NOTIFICATION_PUSH, False),
+                ): bool,
                 vol.Optional(
                     NOTIFICATION_TIME,
                     default=self.config_entry.options.get(NOTIFICATION_TIME, "07:00"),
@@ -169,17 +172,12 @@ class OptionsFlowHandler(OptionsFlow):
     async def async_step_email(self, user_input=None) -> ConfigFlowResult:
         """Collect email notification configuration."""
         if user_input:
-            data = {
-                NOTIFICATION_TYPE: NOTIFICATION_EMAIL,
-                NOTIFICATION_ENABLED: self.context.get("notification_enabled"),
-                NOTIFICATION_TIME: self.context.get("notification_time"),
-                SMTP_HOST: user_input["smtp_host"],
-                SMTP_PORT: user_input["smtp_port"],
-                SMTP_USERNAME: user_input["smtp_username"],
-                SMTP_PASSWORD: user_input["smtp_password"],
-                RECIPIENT_EMAIL: user_input["recipient_email"],
-            }
-            return self.async_create_entry(title="Email Notifications", data=data)
+            notification_push = self.context.get("notification_push")
+            self._options.update(user_input)
+            if notification_push:
+                return await self.async_step_push()
+
+            return self.async_create_entry(title="Email Notifications", data=user_input)
 
         return self.async_show_form(
             step_id="email",
@@ -210,14 +208,10 @@ class OptionsFlowHandler(OptionsFlow):
     async def async_step_push(self, user_input=None) -> ConfigFlowResult:
         """Collect push notification configuration."""
         if user_input:
-            data = {
-                NOTIFICATION_TYPE: NOTIFICATION_PUSH,
-                NOTIFICATION_ENABLED: self.context.get("notification_enabled"),
-                NOTIFICATION_TIME: self.context.get("notification_time"),
-                ACCESS_TOKEN: user_input["access_token"],
-                API_ENDPOINT: user_input["api_endpoint"],
-            }
-            return self.async_create_entry(title="Push Notifications", data=data)
+            self._options.update(user_input)
+            return self.async_create_entry(
+                title="Configure Notifications", data=user_input
+            )
 
         return self.async_show_form(
             step_id="push",
