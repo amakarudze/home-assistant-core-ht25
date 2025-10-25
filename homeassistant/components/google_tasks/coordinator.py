@@ -140,13 +140,9 @@ class TaskUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]]):
             )
             task_list = self.get_daily_todo_tasks()
             if self._notification_type == "email":
-                send_email_notification(
-                    self.config_entry, task_list
-                )
+                send_email_notification(self.config_entry, task_list)
             if self._notification_type == "push":
-                await send_pushbullet_notification(
-                    self.config_entry, task_list
-                )
+                await send_pushbullet_notification(self.config_entry, task_list)
 
         except Exception:
             _LOGGER.exception("An exception occurred while sending notification")
