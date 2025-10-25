@@ -12,9 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 SMTP_TIMEOUT = 30
 
 
-def send_email_notification(
-    config_entry, task_list: list[str]
-) -> None:
+def send_email_notification(config_entry, task_list: list[str]) -> None:
     """Send a daily reminder email with the given task list."""
 
     if not task_list:
@@ -56,7 +54,10 @@ def send_email_notification(
     try:
         server = smtplib.SMTP(smtp_host, smtp_port, timeout=SMTP_TIMEOUT)
         server.starttls()
-        server.login(config_entry.options.get("smtp_username"), config_entry.options.get("smtp_password"))
+        server.login(
+            config_entry.options.get("smtp_username"),
+            config_entry.options.get("smtp_password"),
+        )
         server.sendmail(
             config_entry.options.get("smtp_username"),
             config_entry.options.get("recipient_email"),
@@ -78,10 +79,6 @@ def send_email_notification(
     except smtplib.SMTPSenderRefused as err:
         raise GoogleTaskNotificationError(
             f"Sender email address refused: {config_entry.options.get('smtp_username')}"
-        ) from err
-    except TimeoutError as err:
-        raise GoogleTaskNotificationError(
-            f"SMTP connection timed out after {SMTP_TIMEOUT} seconds"
         ) from err
     except TimeoutError as err:
         raise GoogleTaskNotificationError(

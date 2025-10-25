@@ -30,17 +30,6 @@ async def test_schedule_daily_notification_enabled(hass: HomeAssistant) -> None:
 
     api = AsyncMock(spec=AsyncConfigEntryAuth)
 
-<<<<<<< HEAD
-    # Patch scheduler + module datetime; also patch the coordinator's internal callback
-    with patch(
-        "homeassistant.components.google_tasks.coordinator.async_track_point_in_time"
-    ) as mock_track, patch(
-        "homeassistant.components.google_tasks.coordinator.datetime.datetime",
-        FixedDateTime,
-    ), patch.object(
-        TaskUpdateCoordinator, "_notification_callback", new_callable=AsyncMock
-    ) as mock_cb:
-=======
     with (
         patch(
             "homeassistant.components.google_tasks.coordinator.async_track_point_in_time"
@@ -53,7 +42,6 @@ async def test_schedule_daily_notification_enabled(hass: HomeAssistant) -> None:
             TaskUpdateCoordinator, "_notification_callback", new_callable=AsyncMock
         ) as mock_cb,
     ):
->>>>>>> 7d0fec156885a63af23d2ab11ff93113b26da2d7
         coordinator = TaskUpdateCoordinator(
             hass=hass,
             config_entry=config_entry,
@@ -62,13 +50,8 @@ async def test_schedule_daily_notification_enabled(hass: HomeAssistant) -> None:
             task_list_title="My Tasks",
         )
 
-        # Act: schedule
         await coordinator.schedule_daily_notification()
 
-<<<<<<< HEAD
-        # Assert: scheduled exactly once with expected args
-=======
->>>>>>> 7d0fec156885a63af23d2ab11ff93113b26da2d7
         mock_track.assert_called_once()
         args, _ = mock_track.call_args
         called_hass, scheduled_cb, target_time = args
@@ -78,20 +61,10 @@ async def test_schedule_daily_notification_enabled(hass: HomeAssistant) -> None:
         expected_target = _Datetime(2025, 1, 1, 13, 30, 0)
         assert target_time == expected_target
 
-<<<<<<< HEAD
-        # The internal callback shouldn't be called yet (it's scheduled)
-        assert mock_cb.await_count == 0
-
-        # Simulate the timer firing
-        await scheduled_cb(target_time)
-
-        # Now the coordinator's callback should have been awaited once with the same target
-=======
         assert mock_cb.await_count == 0
 
         await scheduled_cb(target_time)
 
->>>>>>> 7d0fec156885a63af23d2ab11ff93113b26da2d7
         mock_cb.assert_awaited_once()
         (actual_target,), _ = mock_cb.await_args
         assert actual_target == expected_target
