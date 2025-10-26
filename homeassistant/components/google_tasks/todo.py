@@ -151,6 +151,12 @@ class GoogleTaskTodoListEntity(
         duedate_only = None
         taskname = task.get("title")
         duedate = task.get("due")
+        uid: str = cast(str, item.uid)
+        await self.coordinator.api.patch(
+            self._task_list_id,
+            uid,
+            task=task,
+        )
         notification_time = self._notify_time
         if not isinstance(taskname, str):
             taskname = ""
@@ -163,12 +169,6 @@ class GoogleTaskTodoListEntity(
         current_time_str = now.strftime("%H:%M")
         current_time_obj = datetime.strptime(current_time_str, "%H:%M").time()
 
-        uid: str = cast(str, item.uid)
-        await self.coordinator.api.patch(
-            self._task_list_id,
-            uid,
-            task=task,
-        )
         if not duedate:
             _LOGGER.info("No due date set for tasks")
             await self.coordinator.async_refresh()
