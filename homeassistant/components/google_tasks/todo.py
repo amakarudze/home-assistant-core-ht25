@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
-from typing import Any, cast
 import logging
+from typing import Any, cast
 
 from homeassistant.components.todo import (
     TodoItem,
@@ -17,10 +17,15 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from .const import (
+    NOTIFICATION_EMAIL,
+    NOTIFICATION_ENABLED,
+    NOTIFICATION_PUSH,
+    NOTIFICATION_TIME,
+)
 from .coordinator import GoogleTasksConfigEntry, TaskUpdateCoordinator
 from .notifications_email import send_email_notification
 from .notifications_push import send_pushbullet_notification
-#from .const import NOTIFICATION_EMAIL, NOTIFICATION_ENABLED, NOTIFICATION_PUSH
 
 PARALLEL_UPDATES = 0
 _LOGGER = logging.getLogger(__name__)
@@ -118,10 +123,12 @@ class GoogleTaskTodoListEntity(
         self._attr_unique_id = f"{config_entry_id}-{task_list_id}"
         self._task_list_id = task_list_id
         self._config_entry = config_entry
-        self._notify_time = self._config_entry.options.get("notification_time")
-        self._notify_enabled = self._config_entry.options.get("notification_enabled", False)
-        self._notification_email = self._config_entry.options.get("notification_email")
-        self._notification_push = self._config_entry.options.get("notification_push")
+        self._notify_time = self._config_entry.options.get(NOTIFICATION_TIME, "")
+        self._notify_enabled = self._config_entry.options.get(
+            NOTIFICATION_ENABLED, False
+        )
+        self._notification_email = self._config_entry.options.get(NOTIFICATION_EMAIL)
+        self._notification_push = self._config_entry.options.get(NOTIFICATION_PUSH)
 
     @property
     def todo_items(self) -> list[TodoItem] | None:
@@ -138,14 +145,19 @@ class GoogleTaskTodoListEntity(
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
         """Update a To-do item."""
-        task=_convert_todo_item(item)
-        due_today = []
+        task = _convert_todo_item(item)
+        due_today = list[str]()
         duedate_dt = None
         duedate_only = None
         taskname = task.get("title")
         duedate = task.get("due")
-        
         notification_time = self._notify_time
+        if not isinstance(taskname, str):
+            taskname = ""
+        if not self._notify_enabled:
+            _LOGGER.info("Notification not enabled by user")
+            await self.coordinator.async_refresh()
+            return
         notify_time_obj = datetime.strptime(notification_time, "%H:%M").time()
         now = datetime.now()
         current_time_str = now.strftime("%H:%M")
@@ -157,27 +169,37 @@ class GoogleTaskTodoListEntity(
             uid,
             task=task,
         )
-        if duedate:
-          duedate_dt = datetime.fromisoformat(duedate)
-          duedate_only = duedate_dt.date()
-          if current_time_obj >= notify_time_obj:
-            _LOGGER.info("Scheduler Notification time has passed! So we will attempt to send notifications")
-            if duedate_only == date.today():
-              due_today.append(taskname)
-              if self._notify_enabled:
-                if self._notification_email:
-                    send_email_notification(self._config_entry, due_today)
-                if self._notification_push:
-                    await send_pushbullet_notification(self._config_entry, task_list)
-              else:
-                _LOGGER.info("Notification not enabled by user")
-            else:
-              _LOGGER.info("Task not due today")
-
-         else:
-            _LOGGER.info("Scheduler Notification time has not passed yet. So we will wait for scheduler")
-        else:
+        if not duedate:
             _LOGGER.info("No due date set for tasks")
+            await self.coordinator.async_refresh()
+            return
+        duedate_dt = datetime.fromisoformat(duedate)
+        duedate_only = duedate_dt.date()
+
+        if current_time_obj < notify_time_obj:
+            _LOGGER.info(
+                "Scheduler Notification time has not passed yet. So we will wait for scheduler"
+            )
+            await self.coordinator.async_refresh()
+            return
+
+        _LOGGER.info(
+            "Scheduler Notification time has passed! Attempting to send notifications"
+        )
+
+        if duedate_only != date.today():
+            _LOGGER.info("Task not due today")
+            await self.coordinator.async_refresh()
+            return
+
+        due_today.append(taskname)
+
+        if self._notification_email:
+            send_email_notification(self._config_entry, due_today)
+
+        if self._notification_push:
+            await send_pushbullet_notification(self._config_entry, due_today)
+
         await self.coordinator.async_refresh()
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
