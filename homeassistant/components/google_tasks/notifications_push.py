@@ -11,10 +11,13 @@ _LOGGER = logging.getLogger(__name__)
 
 async def send_pushbullet_notification(config_entry, task_list):
     """Send a Pushbullet notification."""
+    if not task_list:
+        _LOGGER.warning("Task list is empty, skipping push notification")
+        return
     access_token = config_entry.options.get(ACCESS_TOKEN)
     api_endpoint = config_entry.options.get("api_endpoint")
-    title = "Home Assistant - Daily Task Summary"
-    message = "Today's Google Tasks:\n" + "\n".join(f"- {t}" for t in task_list)
+    title = "Home Assistant - Daily Task"
+    message = "\n".join(f"- {t}" for t in task_list)
     if not access_token:
         _LOGGER.warning("Pushbullet API key not set; skipping notification")
         return
