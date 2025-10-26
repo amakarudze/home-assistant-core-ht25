@@ -157,12 +157,12 @@ class GoogleTaskTodoListEntity(
             uid,
             task=task,
         )
+        await self.coordinator.async_refresh()
         notification_time = self._notify_time
         if not isinstance(taskname, str):
             taskname = ""
         if not self._notify_enabled:
             _LOGGER.info("Notification not enabled by user")
-            await self.coordinator.async_refresh()
             return
         notify_time_obj = datetime.strptime(notification_time, "%H:%M").time()
         now = datetime.now()
@@ -171,7 +171,6 @@ class GoogleTaskTodoListEntity(
 
         if not duedate:
             _LOGGER.info("No due date set for tasks")
-            await self.coordinator.async_refresh()
             return
         duedate_dt = datetime.fromisoformat(duedate)
         duedate_only = duedate_dt.date()
@@ -180,7 +179,6 @@ class GoogleTaskTodoListEntity(
             _LOGGER.info(
                 "Scheduler Notification time has not passed yet. So we will wait for scheduler"
             )
-            await self.coordinator.async_refresh()
             return
 
         _LOGGER.info(
@@ -189,7 +187,6 @@ class GoogleTaskTodoListEntity(
 
         if duedate_only != date.today():
             _LOGGER.info("Task not due today")
-            await self.coordinator.async_refresh()
             return
 
         due_today.append(taskname)
@@ -199,8 +196,6 @@ class GoogleTaskTodoListEntity(
 
         if self._notification_push:
             await send_pushbullet_notification(self._config_entry, due_today)
-
-        await self.coordinator.async_refresh()
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
         """Delete To-do items."""
