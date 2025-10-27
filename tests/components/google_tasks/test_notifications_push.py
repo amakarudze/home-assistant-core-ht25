@@ -28,16 +28,13 @@ class TestPushNotification:
         return config_entry
 
     @pytest.mark.asyncio
-    async def test_send_pushbullet_notification_success(
-        self, mock_config_entry
-    ):
+    async def test_send_pushbullet_notification_success(self, mock_config_entry):
         """Test successful Pushbullet notification sending."""
         task_list = ["Task 1", "Task 2"]
 
         with patch(
             "homeassistant.components.google_tasks.notifications_push.ClientSession"
         ) as mock_session:
-            # Setup nested async context managers
             mock_response = AsyncMock()
             mock_response.status = 200
 
@@ -45,11 +42,8 @@ class TestPushNotification:
             mock_session.return_value = mock_session_instance
             mock_session_instance.__aenter__.return_value.post.return_value.__aenter__.return_value = mock_response
 
-            await send_pushbullet_notification(
-                 mock_config_entry, task_list
-            )
+            await send_pushbullet_notification(mock_config_entry, task_list)
 
-            # Verify the API call was made
             mock_session_instance.__aenter__.return_value.post.assert_called_once()
 
     @pytest.mark.asyncio
@@ -62,9 +56,8 @@ class TestPushNotification:
         with patch(
             "homeassistant.components.google_tasks.notifications_push.ClientSession"
         ) as mock_session:
-            await send_pushbullet_notification( config_entry, task_list)
+            await send_pushbullet_notification(config_entry, task_list)
 
-            # Should return early without making API call
             mock_session.assert_not_called()
 
     @pytest.mark.asyncio
@@ -83,10 +76,7 @@ class TestPushNotification:
             mock_session.return_value = mock_session_instance
             mock_session_instance.__aenter__.return_value.post.return_value.__aenter__.return_value = mock_response
 
-            # Should not raise exception, just log error
-            await send_pushbullet_notification(
-                 mock_config_entry, task_list
-            )
+            await send_pushbullet_notification(mock_config_entry, task_list)
 
     @pytest.mark.asyncio
     async def test_pushbullet_network_error(self, mock_config_entry):
@@ -102,7 +92,4 @@ class TestPushNotification:
                 "Network error"
             )
 
-            # Should not raise exception, just log error
-            await send_pushbullet_notification(
-                 mock_config_entry, task_list
-            )
+            await send_pushbullet_notification(mock_config_entry, task_list)
