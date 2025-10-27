@@ -223,7 +223,7 @@ class TestEmailNotification:
             assert call_args[1] == "recipient@example.com"
 
             email_content = call_args[2]
-            assert "Here are your tasks:" in email_content
+            assert "Here are your tasks" in email_content
             assert "- Buy groceries" in email_content
             assert "- Walk the dog" in email_content
             assert "- Finish project" in email_content

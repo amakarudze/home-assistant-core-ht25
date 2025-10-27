@@ -684,6 +684,7 @@ async def test_delete_partial_failure(
             blocking=True,
         )
 
+
 @pytest.mark.parametrize(
     "response_handler",
     [
@@ -899,7 +900,6 @@ async def test_move_todo_item(
     [
         [
             LIST_TASK_LIST_RESPONSE,
-            LIST_TASKS_RESPONSE_MULTIPLE,
             LIST_TASKS_RESPONSE_WATER,
             EMPTY_RESPONSE,  # update
             # refresh after update
@@ -916,7 +916,7 @@ async def test_move_todo_item(
         ]
     ],
 )
-async def test_susbcribe(
+async def test_subscribe(
     hass: HomeAssistant,
     setup_credentials: None,
     integration_setup: Callable[[], Awaitable[bool]],

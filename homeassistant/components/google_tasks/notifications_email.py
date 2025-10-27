@@ -41,10 +41,9 @@ def send_email_notification(config_entry, task_list: list[str]) -> None:
     msg["To"] = config_entry.options.get("recipient_email")
     msg["Subject"] = "Home Assistant - Daily Task Reminder"
 
-    task_count = len(task_list)
     body = (
-        "Hi,\nGentle Reminder! \n\nThis is your To-do list for today:\n"
-        f"You are pending with {task_count} task(s):\n\n"
+        "Hi,\nGentle Reminder! \n\n"
+        "Here are your tasks:\n"
         + "\n".join(f"- {task}" for task in task_list)
         + "\n\nBest Wishes, \nHome Assistant"
     )
@@ -64,9 +63,8 @@ def send_email_notification(config_entry, task_list: list[str]) -> None:
             msg.as_string(),
         )
         _LOGGER.info(
-            "Email notification sent successfully to %s with %d task(s)",
+            "Email notification sent successfully to %s",
             config_entry.options.get("recipient_email"),
-            task_count,
         )
     except smtplib.SMTPAuthenticationError as err:
         raise GoogleTaskNotificationError(
@@ -79,10 +77,6 @@ def send_email_notification(config_entry, task_list: list[str]) -> None:
     except smtplib.SMTPSenderRefused as err:
         raise GoogleTaskNotificationError(
             f"Sender email address refused: {config_entry.options.get('smtp_username')}"
-        ) from err
-    except TimeoutError as err:
-        raise GoogleTaskNotificationError(
-            f"SMTP connection timed out after {SMTP_TIMEOUT} seconds"
         ) from err
     except TimeoutError as err:
         raise GoogleTaskNotificationError(
