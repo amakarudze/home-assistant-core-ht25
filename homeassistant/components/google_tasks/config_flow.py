@@ -144,7 +144,7 @@ class OptionsFlowHandler(OptionsFlow):
             if notification_enabled:
                 self.context["notification_push"] = notification_push  # type: ignore[typeddict-unknown-key]
                 if notification_push and not notification_email:
-                    return await self.step_push()
+                    return self.step_push()
                 return await self.step_email()
 
         options_schema = vol.Schema(
@@ -176,7 +176,7 @@ class OptionsFlowHandler(OptionsFlow):
             notification_push = self.context.get("notification_push")
             self._options.update(user_input)
             if notification_push:
-                return await self.step_push()
+                return self.step_push()
 
             return self.async_create_entry(
                 title="Email Notifications", data=self._options
@@ -208,7 +208,7 @@ class OptionsFlowHandler(OptionsFlow):
             ),
         )
 
-    async def step_push(self, user_input=None) -> ConfigFlowResult:
+    def step_push(self, user_input=None) -> ConfigFlowResult:
         """Collect push notification configuration."""
         if user_input:
             self._options.update(user_input)
