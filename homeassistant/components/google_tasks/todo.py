@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
-from typing import Any, cast
 import logging
+from typing import Any, cast
 
 from homeassistant.components.todo import (
     TodoItem,
@@ -17,10 +17,15 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from .const import (
+    NOTIFICATION_EMAIL,
+    NOTIFICATION_ENABLED,
+    NOTIFICATION_PUSH,
+    NOTIFICATION_TIME,
+)
 from .coordinator import GoogleTasksConfigEntry, TaskUpdateCoordinator
 from .notifications_email import send_email_notification
 from .notifications_push import send_pushbullet_notification
-#from .const import NOTIFICATION_EMAIL, NOTIFICATION_ENABLED, NOTIFICATION_PUSH
 
 PARALLEL_UPDATES = 0
 _LOGGER = logging.getLogger(__name__)
@@ -118,10 +123,12 @@ class GoogleTaskTodoListEntity(
         self._attr_unique_id = f"{config_entry_id}-{task_list_id}"
         self._task_list_id = task_list_id
         self._config_entry = config_entry
-        self._notify_time = self._config_entry.options.get("notification_time")
-        self._notify_enabled = self._config_entry.options.get("notification_enabled", False)
-        self._notification_email = self._config_entry.options.get("notification_email")
-        self._notification_push = self._config_entry.options.get("notification_push")
+        self._notify_time = self._config_entry.options.get(NOTIFICATION_TIME, "")
+        self._notify_enabled = self._config_entry.options.get(
+            NOTIFICATION_ENABLED, False
+        )
+        self._notification_email = self._config_entry.options.get(NOTIFICATION_EMAIL)
+        self._notification_push = self._config_entry.options.get(NOTIFICATION_PUSH)
 
     @property
     def todo_items(self) -> list[TodoItem] | None:
@@ -138,8 +145,8 @@ class GoogleTaskTodoListEntity(
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
         """Update a To-do item."""
-        task=_convert_todo_item(item)
-        due_today = []
+        task = _convert_todo_item(item)
+        due_today = list[str]()
         duedate_dt = None
         duedate_only = None
         taskname = task.get("title")
