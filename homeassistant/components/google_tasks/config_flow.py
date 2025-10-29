@@ -8,12 +8,33 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import HttpRequest
+import voluptuous as vol
 
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    ConfigEntry,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_ACCESS_TOKEN, CONF_TOKEN
+from homeassistant.core import callback
 from homeassistant.helpers import config_entry_oauth2_flow
 
-from .const import DOMAIN, OAUTH2_SCOPES
+from .const import (
+    ACCESS_TOKEN,
+    API_ENDPOINT,
+    DOMAIN,
+    NOTIFICATION_EMAIL,
+    NOTIFICATION_ENABLED,
+    NOTIFICATION_PUSH,
+    NOTIFICATION_TIME,
+    OAUTH2_SCOPES,
+    RECIPIENT_EMAIL,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_USERNAME,
+)
 
 
 class OAuth2FlowHandler(
@@ -95,3 +116,118 @@ class OAuth2FlowHandler(
         if user_input is None:
             return self.async_show_form(step_id="reauth_confirm")
         return await self.async_step_user()
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Get config entries for Google Task notifications."""
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(OptionsFlow):
+    """Create config options for Google Tasks notifications."""
+
+    def __init__(self, config_entry) -> None:
+        """Initialise config entries."""
+        self._config_entry = config_entry
+        self._options = dict(config_entry.options)
+
+    async def async_step_init(self, user_input: dict[str, Any]) -> ConfigFlowResult:
+        """Setup config entries for notifications."""
+
+        if user_input:
+            notification_email = user_input[NOTIFICATION_EMAIL]
+            notification_push = user_input[NOTIFICATION_PUSH]
+            notification_enabled = user_input[NOTIFICATION_ENABLED]
+            self._options.update(user_input)
+
+            if notification_enabled:
+                self.context["notification_push"] = notification_push  # type: ignore[typeddict-unknown-key]
+                if notification_push and not notification_email:
+                    return await self.async_step_push()
+                return await self.async_step_email()
+
+        options_schema = vol.Schema(
+            {
+                vol.Optional(
+                    NOTIFICATION_ENABLED,
+                    default=self.config_entry.options.get(NOTIFICATION_ENABLED, False),
+                ): bool,
+                vol.Optional(
+                    NOTIFICATION_EMAIL,
+                    default=self.config_entry.options.get(NOTIFICATION_EMAIL, False),
+                ): bool,
+                vol.Optional(
+                    NOTIFICATION_PUSH,
+                    default=self.config_entry.options.get(NOTIFICATION_PUSH, False),
+                ): bool,
+                vol.Optional(
+                    NOTIFICATION_TIME,
+                    default=self.config_entry.options.get(NOTIFICATION_TIME, "07:00"),
+                ): str,
+            }
+        )
+
+        return self.async_show_form(step_id="init", data_schema=options_schema)
+
+    async def async_step_email(self, user_input=None) -> ConfigFlowResult:
+        """Collect email notification configuration."""
+        if user_input:
+            notification_push = self.context.get("notification_push")
+            self._options.update(user_input)
+            if notification_push:
+                return await self.async_step_push()
+
+            return self.async_create_entry(
+                title="Email Notifications", data=self._options
+            )
+
+        return self.async_show_form(
+            step_id="email",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        SMTP_HOST, default=self.config_entry.options.get(SMTP_HOST)
+                    ): str,
+                    vol.Required(
+                        SMTP_PORT, default=self.config_entry.options.get(SMTP_PORT, 587)
+                    ): int,
+                    vol.Required(
+                        SMTP_USERNAME,
+                        default=self.config_entry.options.get(SMTP_USERNAME),
+                    ): str,
+                    vol.Required(
+                        SMTP_PASSWORD,
+                        default=self.config_entry.options.get(SMTP_PASSWORD),
+                    ): str,
+                    vol.Required(
+                        RECIPIENT_EMAIL,
+                        default=self.config_entry.options.get(RECIPIENT_EMAIL),
+                    ): str,
+                }
+            ),
+        )
+
+    async def async_step_push(self, user_input=None) -> ConfigFlowResult:
+        """Collect push notification configuration."""
+        if user_input:
+            self._options.update(user_input)
+            return self.async_create_entry(
+                title="Configure Notifications", data=self._options
+            )
+
+        return self.async_show_form(
+            step_id="push",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        ACCESS_TOKEN,
+                        default=self.config_entry.options.get(ACCESS_TOKEN),
+                    ): str,
+                    vol.Required(
+                        API_ENDPOINT,
+                        default=self.config_entry.options.get(API_ENDPOINT),
+                    ): str,
+                },
+            ),
+        )

@@ -157,7 +157,7 @@ def create_batch_response_object(
             [
                 f"--{BOUNDARY}",
                 "Content-Type: application/http",
-                f"{CONTENT_ID}: {content_ids.pop()}",
+                f"{CONTENT_ID}: {content_ids.pop(0)}",
                 "",
                 f"HTTP/1.1 {status} OK",
                 "Content-Type: application/json; charset=UTF-8",
@@ -878,16 +878,19 @@ async def test_move_todo_item(
     resp = await client.receive_json()
     assert resp.get("success")
 
+    # Ensure the HTTP call for the move matched the expected snapshot
     assert len(mock_http_response.call_args_list) == 4
     call = mock_http_response.call_args_list[2]
     assert call
     assert call.args == snapshot
     assert call.kwargs.get("body") == snapshot
 
+    # Count remains 3
     state = hass.states.get(ENTITY_ID)
     assert state
     assert state.state == "3"
 
+    # Verify the new ordering matches snapshot
     items = await ws_get_items()
     assert items == snapshot
 
@@ -913,7 +916,7 @@ async def test_move_todo_item(
         ]
     ],
 )
-async def test_susbcribe(
+async def test_subscribe(
     hass: HomeAssistant,
     setup_credentials: None,
     integration_setup: Callable[[], Awaitable[bool]],

@@ -5,3 +5,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 class GoogleTasksApiError(HomeAssistantError):
     """Error talking to the Google Tasks API."""
+
+
+class GoogleTaskNotificationError(HomeAssistantError):
+    """Error sending Google Tasks notifications."""
