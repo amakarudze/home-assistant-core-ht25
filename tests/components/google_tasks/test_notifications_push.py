@@ -93,3 +93,44 @@ class TestPushNotification:
             )
 
             await send_pushbullet_notification(mock_config_entry, task_list)
+
+@pytest.fixture
+def push_cfg():
+    """Return a mock config entry for Pushbullet contract test."""
+    cfg = MagicMock()
+    cfg.options = {
+        "access_token": "test_token_123",
+        "api_endpoint": "https://api.pushbullet.com/v2/pushes",
+    }
+    return cfg
+
+
+@pytest.mark.asyncio
+async def test_pushbullet_sends_correct_endpoint_headers_and_payload(push_cfg) -> None:
+    """Verify endpoint, headers, and JSON payload sent to Pushbullet."""
+    task_list = ["Buy milk", "Walk the dog"]
+
+    with patch(
+        "homeassistant.components.google_tasks.notifications_push.ClientSession"
+    ) as mock_session_cls:
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_session = AsyncMock()
+        mock_session_cls.return_value.__aenter__.return_value = mock_session
+        mock_session.post.return_value.__aenter__.return_value = mock_response
+
+        await send_pushbullet_notification(push_cfg, task_list)
+
+        mock_session.post.assert_called_once()
+        args, kwargs = mock_session.post.call_args
+        assert args[0] == push_cfg.options["api_endpoint"]
+        assert kwargs["headers"] == {
+            "Access-Token": "test_token_123",
+            "Content-Type": "application/json",
+        }
+        expected_body = "Today's Google Tasks:\n- Buy milk\n- Walk the dog"
+        assert kwargs["json"] == {
+            "type": "note",
+            "title": "Home Assistant - Daily Task Summary",
+            "body": expected_body,
+        }
